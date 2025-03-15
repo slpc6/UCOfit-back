@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import os
 
 #Internal libraries
-from models.autenticacion import Token
+from models.model_autenticacion import Token
 from databases.client_mongo import get_client
 
 

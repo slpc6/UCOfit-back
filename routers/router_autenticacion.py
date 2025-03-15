@@ -1,3 +1,6 @@
+"""Este modulo contiene las rutas y funciones para la autenticacion de usuarios en la API"""
+
+#External libraries
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -6,7 +9,7 @@ from typing import Optional
 from dotenv import load_dotenv
 import os
 
-from models.model_usuario import Usuario
+#Internal libraries
 from models.autenticacion import Token
 from databases.client_mongo import get_client
 
@@ -29,7 +32,7 @@ def authenticate_user(email: str, password: str) -> dict:
         - password: contraseña del usuario que se desea autenticar.
     
         :Returns:
-        Un diccionario con los datos del usuario si este existe en la base de datos, de lo contrario None.
+        - Un diccionario con los datos del usuario si este existe en la base de datos, de lo contrario None.
         
     """
     collection = get_client('UCOfit', 'usuarios')
@@ -48,7 +51,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         - expires_delta: tiempo de expiracion del token.
     
         :Returns:
-        Un token de acceso codificado con los datos del usuario y el tiempo de expiracion.
+        - Un token de acceso codificado con los datos del usuario y el tiempo de expiracion.
         
     """
     to_encode = data.copy()
@@ -58,7 +61,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> dict:
+    """Autentica un usuario en la base de datos y crea un token de acceso
+    
+        :args:
+        - form_data: datos del formulario que se reciben en la peticion POST.
+    
+        :Returns:
+        - Un token de acceso si las credenciales son correctas, de lo contrario un mensaje de error.
+        
+    """
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code= 401, detail="Credenciales incorrectas")
@@ -67,7 +79,16 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": token, "token_type": "bearer"}
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+    """Obtiene el usuario actual a partir de un token de acceso
+    
+        :args:
+        - token: token de acceso que se recibe en la peticion.
+    
+        :Returns:
+        - Un diccionario con los datos del usuario si el token es valido, de lo contrario un mensaje de error.
+        
+    """
     collection = get_client('UCOfit', 'usuarios')
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

@@ -1,13 +1,12 @@
 # Punto de inicio del api para la aplicaciopn UCOfit
 
 # External libraries
-from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import uvicorn
 import importlib
 import pkgutil
+import uvicorn
 
 # Internal libraries
 from path import path
@@ -15,8 +14,7 @@ from path import path
 
 app = FastAPI(version= '1.0.0',
               title= 'UCOfit API',
-              description= '',
-              docs_url= '/')
+              description= '')
 CORSMiddleware(app=app, 
                allow_origins=['*'], 
                allow_methods=['*'], 

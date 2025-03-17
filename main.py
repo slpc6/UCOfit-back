@@ -15,10 +15,13 @@ from path import path
 app = FastAPI(version= '1.0.0',
               title= 'UCOfit API',
               description= '')
-CORSMiddleware(app=app, 
-               allow_origins=['*'], 
-               allow_methods=['*'], 
-               allow_headers=['*'])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # URL de tu frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 for _, module_name, _ in pkgutil.iter_modules([path.routers]):

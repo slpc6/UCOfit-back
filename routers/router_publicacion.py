@@ -7,6 +7,7 @@ from datetime import datetime
 from models.model_publicacion import Publicacion
 from routers.router_autenticacion import get_current_user
 from databases.client_mongo import get_client
+from models.model_comentario import Comentario
 
 router = APIRouter(prefix='/publicacion',
                         tags=['Publicacion'])
@@ -28,7 +29,7 @@ def crear_publicacion(publicacion: Publicacion, usuario: dict = Depends(get_curr
     try:
         publicacion_dict = publicacion.model_dump()
         publicacion_dict["usuario_id"] = usuario["email"]
-        publicacion_dict["comentarios"] = {}
+        publicacion_dict["comentarios"] = []
         publicacion_dict["puntuacion"] = 0
         
         collection.insert_one(publicacion_dict)
@@ -187,20 +188,20 @@ def comentar_publicacion(
     
     try:
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-        
+
         if not publicacion:
             return JSONResponse(content={'msg': 'Publicación no encontrada'}, status_code=404)
         
-        comentario_id = str(ObjectId())
-        comentario_data = {
-            "usuario": usuario["email"],
+        comentario_data = { 
+            "usuario_id": usuario["email"],
             "texto": comentario,
             "fecha": str(datetime.now())
         }
+        publicacion["comentarios"].append(comentario_data)
         
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"$set": {f"comentarios.{comentario_id}": comentario_data}}
+            {"$set": publicacion}  
         )
         
         return JSONResponse(content={'msg': 'Comentario añadido con éxito'}, status_code=201)
@@ -235,10 +236,11 @@ def puntuar_publicacion(
         if not publicacion:
             return JSONResponse(content={'msg': 'Publicación no encontrada'}, status_code=404)
         
+        publicacion["puntuacion"] = (publicacion["puntuacion"] + puntuacion) / 2
+
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"usuario_id": usuario["email"]},
-            {"$set": {"puntuacion": puntuacion}}
+            {"$set": publicacion}
         )
         
         return JSONResponse(content={'msg': 'Puntuación actualizada con éxito'}, status_code=200)

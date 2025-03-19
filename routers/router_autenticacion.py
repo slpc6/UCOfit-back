@@ -36,11 +36,19 @@ def authenticate_user(email: str, password: str) -> dict:
         
     """
     collection = get_client('UCOfit', 'usuarios')
-    usuario = collection.find_one({'email': email})
-
-    if not password or usuario["password"] != password:
+    user = collection.find_one({'email': email})
+    
+    if not user:
         return None
-    return usuario
+        
+    if not password or user["password"] != password:
+        return None
+        
+    # Eliminar el _id de MongoDB que no es serializable
+    if '_id' in user:
+        user.pop('_id')
+        
+    return user
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -55,9 +63,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         
     """
     to_encode = data.copy()
-    expire = datetime.now() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        
+    to_encode.update({"exp": expire.timestamp()})  # Usar timestamp en lugar de objeto datetime
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 
 @router.post("/login", response_model=Token)
@@ -73,10 +86,20 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> dict:
     """
     user = authenticate_user(form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code= 401, detail="Credenciales incorrectas")
+        raise HTTPException(
+            status_code=401,
+            detail="Credenciales incorrectas",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-    token = create_access_token({"sub": user["email"], "rol": user["rol"]})
-    return {"access_token": token, "token_type": "bearer"}
+    # Crear el token con una expiración explícita
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"], "rol": user["rol"]},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
@@ -90,12 +113,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         
     """
     collection = get_client('UCOfit', 'usuarios')
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Token inválido o expirado",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
-        user = collection.find_one({'email': email}).model_dump()
+        if email is None:
+            raise credentials_exception
+            
+        user = collection.find_one({'email': email})
         if not user:
-            raise HTTPException(status_code= 401, detail="Token inválido")
+            raise credentials_exception
+            
+        # Eliminamos el _id de MongoDB que no es serializable
+        if '_id' in user:
+            user.pop('_id')
+            
         return user
+        
     except JWTError:
-        raise HTTPException(status_code= 401, detail="Token inválido o expirado")
+        raise credentials_exception
+    

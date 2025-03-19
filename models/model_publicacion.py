@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-from bson.objectid import ObjectId
 
 class Publicacion(BaseModel):
     titulo: str

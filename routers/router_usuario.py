@@ -32,7 +32,7 @@ def register(usuario: Usuario) -> JSONResponse:
     return JSONResponse(status_code=201, content={'msg': 'Usuario registrado correctamente'})
 
 
-@router.delete('/delete')
+@router.delete('/eliminar')
 def delete(usuario: dict = Depends(get_current_user)) -> JSONResponse:
     """Elimina un usuario de la base de datos
     
@@ -46,3 +46,16 @@ def delete(usuario: dict = Depends(get_current_user)) -> JSONResponse:
     collection = get_client('UCOfit', 'usuarios')
     collection.delete_one({'email': usuario['email']})
     return JSONResponse(status_code=200, content={'msg': 'Usuario eliminado correctamente'})
+
+
+@router.get('/perfil')
+def get_profile(usuario: dict = Depends(get_current_user)) -> JSONResponse:
+    """Obtiene el perfil del usuario
+    
+        :args:
+        - usuario: datos del usuario actualmente logueado.
+
+        :Returns:
+        - Un Jsonresponse con los datos del usuario.
+    """
+    return JSONResponse(status_code=200, content={'usuario': usuario})

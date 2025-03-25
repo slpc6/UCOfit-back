@@ -31,3 +31,6 @@ class Usuario(BaseModel):
     rol: Literal["administrador", "usuario"] = Field(
         ..., description="Rol del usuario (administrador, usuario)"
     )
+    puntuacion: int = Field(
+        ..., description="Puntuación del usuario"
+    )

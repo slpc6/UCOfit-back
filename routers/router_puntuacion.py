@@ -43,8 +43,10 @@ def puntuar_publicacion(
             )
 
         publicacion["puntuacion"] = (publicacion["puntuacion"] + puntuacion) / 2
-
         collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
+
+        usuario["puntuacion"] = (usuario["puntuacion"] + puntuacion)
+        collection.update_one({"_id": ObjectId(usuario["email"])}, {"$set": usuario})
 
         return JSONResponse(
             content={"msg": "Puntuación actualizada con éxito"}, status_code=200
@@ -53,3 +55,20 @@ def puntuar_publicacion(
         return JSONResponse(
             content={"msg": f"Error al puntuar publicación: {e}"}, status_code=500
         )
+
+
+@router.get('/ranking_usuarios')
+def obtener_ranking_usuarios(usuario: dict = Depends(get_current_user)):
+    """Obtiene el ranking de usuarios por puntuación
+    
+    :Returns:
+    - Un JSONResponse con el ranking de usuarios.
+    """
+    collection = get_client(database='UCOfit', collection='usuarios')
+    usuarios = collection.find().sort('puntuacion', -1)
+    usuarios_list = []
+    for usuario in usuarios:
+        usuario["_id"] = str(usuario["_id"])
+        usuarios_list.append(usuario)
+        
+    return JSONResponse(content={"usuarios": usuarios_list}, status_code=200)

@@ -1,13 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from bson.objectid import ObjectId
-from typing import List, Optional
-from datetime import datetime
+from typing import Optional
 
 from models.model_publicacion import Publicacion
 from routers.router_autenticacion import get_current_user
 from databases.client_mongo import get_client
-from models.model_comentario import Comentario
 
 router = APIRouter(prefix='/publicacion',
                         tags=['Publicacion'])
@@ -166,83 +164,3 @@ def eliminar_publicacion(publicacion_id: str, usuario: dict = Depends(get_curren
         return JSONResponse(content={'msg': 'Publicación eliminada con éxito'}, status_code=200)
     except Exception as e:
         return JSONResponse(content={'msg': f'Error al eliminar la publicación: {e}'}, status_code=500)
-
-
-@router.post('/comentar/{publicacion_id}')
-def comentar_publicacion(
-    publicacion_id: str, 
-    comentario: str,
-    usuario: dict = Depends(get_current_user)
-):
-    """Añade un comentario a una publicación
-    
-        :args:
-        - publicacion_id: id de la publicación.
-        - comentario: texto del comentario.
-        - usuario: datos del usuario autenticado.
-        
-        :Returns:
-        - Un JSONResponse con mensaje de éxito o error.
-    """
-    collection = get_client(database='UCOfit', collection='publicacion')
-    
-    try:
-        publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-
-        if not publicacion:
-            return JSONResponse(content={'msg': 'Publicación no encontrada'}, status_code=404)
-        
-        comentario_data = { 
-            "usuario_id": usuario["email"],
-            "texto": comentario,
-            "fecha": str(datetime.now())
-        }
-        publicacion["comentarios"].append(comentario_data)
-        
-        collection.update_one(
-            {"_id": ObjectId(publicacion_id)},
-            {"$set": publicacion}  
-        )
-        
-        return JSONResponse(content={'msg': 'Comentario añadido con éxito'}, status_code=201)
-    except Exception as e:
-        return JSONResponse(content={'msg': f'Error al añadir comentario: {e}'}, status_code=500)
-
-
-@router.post('/puntuar/{publicacion_id}')
-def puntuar_publicacion(
-    publicacion_id: str,
-    puntuacion: int,
-    usuario: dict = Depends(get_current_user)
-):
-    """Añade o actualiza la puntuación de una publicación
-    
-        :args:
-        - publicacion_id: id de la publicación.
-        - puntuacion: valor de la puntuación (1-5).
-        - usuario: datos del usuario autenticado.
-        
-        :Returns:
-        - Un JSONResponse con mensaje de éxito o error.
-    """
-    collection = get_client(database='UCOfit', collection='publicacion')
-    
-    if puntuacion < 1 or puntuacion > 5:
-        return JSONResponse(content={'msg': 'La puntuación debe estar entre 1 y 5'}, status_code=400)
-    
-    try:
-        publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-        
-        if not publicacion:
-            return JSONResponse(content={'msg': 'Publicación no encontrada'}, status_code=404)
-        
-        publicacion["puntuacion"] = (publicacion["puntuacion"] + puntuacion) / 2
-
-        collection.update_one(
-            {"_id": ObjectId(publicacion_id)},
-            {"$set": publicacion}
-        )
-        
-        return JSONResponse(content={'msg': 'Puntuación actualizada con éxito'}, status_code=200)
-    except Exception as e:
-        return JSONResponse(content={'msg': f'Error al puntuar publicación: {e}'}, status_code=500)

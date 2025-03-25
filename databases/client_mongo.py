@@ -1,6 +1,6 @@
 """Conexion con la base de datos de mongo"""
 
-#External libraries
+# External libraries
 import os
 
 from dotenv import load_dotenv
@@ -18,10 +18,10 @@ def get_client(database: str, collection: str) -> MongoClient:
 
     """
     load_dotenv()
-    CLIENT_MONGO = os.getenv('CLIENT_MONGO')
-    client = MongoClient(CLIENT_MONGO, server_api=ServerApi('1'))
+    CLIENT_MONGO = os.getenv("CLIENT_MONGO")
+    client = MongoClient(CLIENT_MONGO, server_api=ServerApi("1"))
     try:
-        client.admin.command('ping')
+        client.admin.command("ping")
     except Exception as e:
         print(e)
 

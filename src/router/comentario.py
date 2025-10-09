@@ -7,16 +7,15 @@ from bson.objectid import ObjectId
 from datetime import datetime
 
 # Local imports
-from routers.router_autenticacion import get_current_user
-from databases.client_mongo import get_client
-
+from data.mongo import MongoDBClientSingleton
+from router.usuario import datos_usuario
 
 router = APIRouter(prefix="/comentario", tags=["comentario"])
 
 
 @router.post("/comentar/{publicacion_id}")
 def comentar_publicacion(
-    publicacion_id: str, comentario: str, usuario: dict = Depends(get_current_user)
+    publicacion_id: str, comentario: str, usuario: dict = Depends(datos_usuario)
 ):
     """Añade un comentario a una publicación
 
@@ -28,10 +27,10 @@ def comentar_publicacion(
     :Returns:
     - Un JSONResponse con mensaje de éxito o error.
     """
-    collection = get_client(database="UCOfit", collection="publicacion")
+    #collection = get_client(database="UCOfit", collection="publicacion")
 
     try:
-        publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
+        #publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
 
         if not publicacion:
             return JSONResponse(
@@ -43,9 +42,9 @@ def comentar_publicacion(
             "texto": comentario,
             "fecha": str(datetime.now()),
         }
-        publicacion["comentarios"].append(comentario_data)
+        #publicacion["comentarios"].append(comentario_data)
 
-        collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
+        #collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
 
         return JSONResponse(
             content={"msg": "Comentario añadido con éxito"}, status_code=201
@@ -57,7 +56,7 @@ def comentar_publicacion(
 
 
 @router.get("/mis_comentarios/")
-def obtener_comentarios(usuario: dict = Depends(get_current_user)):
+def obtener_comentarios(usuario: dict = Depends(datos_usuario)):
     """Obtiene todos los comentarios de un usuario
 
     :args:
@@ -76,7 +75,7 @@ def editar_comentario(
     publicacion_id: str,
     comentario_id: str,
     comentario: str,
-    usuario: dict = Depends(get_current_user),
+    usuario: dict = Depends(datos_usuario),
 ):
     """Edita un comentario de una publicación
 
@@ -89,16 +88,16 @@ def editar_comentario(
     :Returns:
         - Un JSONResponse con mensaje de éxito o error.
     """
-    collection = get_client(database="UCOfit", collection="publicacion")
-    publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
+    #collection = get_client(database="UCOfit", collection="publicacion")
+    #publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
     if not publicacion:
         return JSONResponse(
             content={"msg": "Publicación no encontrada"}, status_code=404
         )
-    comentario = next(
+    #comentario = next(
         (c for c in publicacion["comentarios"] if c["_id"] == ObjectId(comentario_id)),
         None,
-    )
+    #)
     if not comentario:
         return JSONResponse(
             content={"msg": "Comentario no encontrado"}, status_code=404
@@ -109,7 +108,7 @@ def editar_comentario(
             status_code=403,
         )
     comentario["texto"] = comentario
-    collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
+    #collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
     return JSONResponse(
         content={"msg": "Comentario editado con éxito"}, status_code=200
     )
@@ -117,7 +116,7 @@ def editar_comentario(
 
 @router.delete("/eliminar_comentario/{publicacion_id}/{comentario_id}")
 def eliminar_comentario(
-    publicacion_id: str, comentario_id: str, usuario: dict = Depends(get_current_user)
+    publicacion_id: str, comentario_id: str, usuario: dict = Depends(datos_usuario)
 ):
     """Elimina un comentario de una publicación
 
@@ -129,22 +128,21 @@ def eliminar_comentario(
     :Returns:
         - Un JSONResponse con mensaje de éxito o error.
     """
-    collection = get_client(database="UCOfit", collection="publicacion")
-    publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-    if not publicacion:
-        return JSONResponse(
-            content={"msg": "Publicación no encontrada"}, status_code=404
-        )
-    comentario = next(
-        (c for c in publicacion["comentarios"] if c["_id"] == ObjectId(comentario_id)),
-        None,
-    )
-    if not comentario:
-        return JSONResponse(
-            content={"msg": "Comentario no encontrado"}, status_code=404
-        )
-    publicacion["comentarios"].remove(comentario)
-    collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
+    #collection = get_client(database="UCOfit", collection="publicacion")
+    #publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
+    #if not publicacion:
+    #    return JSONResponse(
+    #        content={"msg": "Publicación no encontrada"}, status_code=404
+    #    )
+    #comentario = next(
+    #    (c for c in publicacion["comentarios"] if c["_id"] == ObjectId(comentario_id)),
+    #   None,
+    #)
+    #if not comentario:
+    #    return JSONResponse(
+    #        content={"msg": "Comentario no encontrado"}, status_code=404
+    #    )
+    #collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": publicacion})
     return JSONResponse(
         content={"msg": "Comentario eliminado con éxito"}, status_code=200
     )

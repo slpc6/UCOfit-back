@@ -31,19 +31,25 @@ def registrar(usuario: Usuario) -> JSONResponse:
     try:
         usuario.validarUsuario()
         usuario_dict = usuario.model_dump()
-        
+
         if DATA.find_one({"email": usuario_dict["email"]}):
-            return JSONResponse(status_code=400, content={"msg": "Ya existe un usuario con ese correo"})
-        
-        hashed_password = bcrypt.hashpw(usuario_dict["password"].encode('utf-8'), bcrypt.gensalt())
-        usuario_dict["password"] = hashed_password
+            return JSONResponse(
+                status_code=400, 
+                content={"msg": "Ya existe un usuario con ese correo."})
+
+        usuario_dict["password"] = bcrypt.hashpw(
+            usuario_dict["password"].encode('utf-8'), 
+            bcrypt.gensalt())
+
         DATA.insert_one(usuario_dict)
-        return JSONResponse(status_code=201, content={"msg": "Usuario registrado correctamente"})
-    
+        return JSONResponse(
+            status_code=201, 
+            content={"msg": "Usuario registrado correctamente"})
+
     except Exception as e:
         return JSONResponse(
-            status_code=500, 
-            content={"msg": f"Error al registrar el usuario: {e}"})
+            status_code=500,
+            content={"msg": f"Ocurrio un error inesperado: {e}"})
 
 
 def datos_usuario(token: str = Depends(OA2)) -> dict:
@@ -56,19 +62,18 @@ def datos_usuario(token: str = Depends(OA2)) -> dict:
     - dict: Datos del usuario autenticado
     
     """
-
     try:
         payload = jwt.decode(token, SECRET_KEY, [ALGORITHM])
         user = DATA.find_one({"email": payload["email"]}, {"password": 0})
         return user
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code= 401, detail= "Token expirado")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code= 401, detail= "Token inválido")
+    except jwt.ExpiredSignatureError as e:
+        raise HTTPException(status_code= 401, detail= "Token expirado") from e
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(status_code= 401, detail= "Token inválido") from e
 
 
 @router.get("/perfil")
-def usuario(token: str = Depends(OA2)) -> JSONResponse:
+def perfil(token: str = Depends(OA2)) -> JSONResponse:
     """Devuelve la información del usuario autenticado
     
     Args:
@@ -78,17 +83,19 @@ def usuario(token: str = Depends(OA2)) -> JSONResponse:
     - JSONResponse: Respuesta de la API
     
     """
-    
+
     try:
         user = datos_usuario(token)
         if not user:
-            return JSONResponse(status_code=404, content={"msg": "Usuario no encontrado"})
-        
+            return JSONResponse(
+                status_code=404,
+                content={"data": "Usuario no encontrado"})
+    
         user["_id"] = str(user["_id"])
         return JSONResponse(status_code=200, content={"usuario": user})
-    
+
     except Exception as e:
-        return JSONResponse(status_code=500, content={"msg": f"Error al obtener la información del usuario: {e}"})
+        return JSONResponse(status_code=500, content={"data": f"Error al obtener la información del usuario: {e}"})
 
 
 @router.put("/actualizar")

@@ -9,11 +9,11 @@ from bson.objectid import ObjectId
 
 
 from router.usuario import datos_usuario
-from util.load_data import get_auth, get_mongo_data
+from util.load_data import get_mongo_data
 
 
 router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
-OA2 = get_auth()
+
 
 @router.post("/crear")
 def crear_publicacion(

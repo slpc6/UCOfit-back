@@ -1,90 +1,150 @@
-from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
-from bson.objectid import ObjectId
-from typing import Optional
+"""Modulo para la gestion de los endpoints relaciondos con publicaciones"""
 
-from model.publicacion import Publicacion
+from typing import Optional
+from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, UploadFile, Form
+from fastapi.responses import JSONResponse
+from gridfs import GridFS
+from bson.objectid import ObjectId
+
+
 from router.usuario import datos_usuario
+from util.load_data import get_auth, get_mongo_data
+
 
 router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
-
+OA2 = get_auth()
 
 @router.post("/crear")
 def crear_publicacion(
-    publicacion: Publicacion, usuario: dict = Depends(datos_usuario)
+    titulo: str = Form(...),
+    descripcion: str = Form(...),
+    video: UploadFile = File(...),
+    usuario: dict = Depends(datos_usuario)
 ) -> JSONResponse:
     """Crea una nueva publicación en la base de datos
 
     :args:
-    - publicacion: datos de la publicación a crear.
+    - titulo: título de la publicación.
+    - descripcion: descripción de la publicación.
+    - video: archivo de video enviado como multipart/form-data.
     - usuario: datos del usuario autenticado.
 
     :Returns:
     - Un JSONResponse con mensaje de éxito o error.
     """
-    #collection = get_client(database="UCOfit", collection="publicacion")
-
     try:
-        publicacion_dict = publicacion.model_dump()
-        publicacion_dict["usuario_id"] = usuario["email"]
-        publicacion_dict["comentarios"] = []
-        publicacion_dict["puntuacion"] = 0
+        collection = get_mongo_data('publicacion')
 
-    #    collection.insert_one(publicacion_dict)
+        db = collection.database
+        fs = GridFS(db)
+        file_id = fs.put(
+            video.file,
+            filename=video.filename,
+            content_type=video.content_type or "video/mp4",
+        )
+
+        publicacion_doc = {
+            "titulo": titulo,
+            "descripcion": descripcion,
+            "video": str(file_id),
+            "usuario_id": usuario["email"],
+            "comentarios": [],
+            "puntuacion": 0
+        }
+
+        result = collection.insert_one(publicacion_doc)
+
+        return JSONResponse(
+            content={
+                "msg": "Publicación creada con éxito",
+                "publicacion_id": str(result.inserted_id),
+                "video_id": str(file_id)
+            },
+            status_code=201
+        )
     except Exception as e:
         return JSONResponse(
             content={"msg": f"Error al crear la publicación: {e}"}, status_code=500
         )
 
-    return JSONResponse(
-        content={"msg": "Publicación creada con éxito"}, status_code=201
-    )
-
 
 @router.get("/general")
 def listar_publicaciones(usuario: dict = Depends(datos_usuario)):
-    """Lista todas las publicaciones disponibles
+    """Lista todas las publicaciones disponibles con URLs de video integradas
 
     :args:
     - usuario: datos del usuario autenticado.
 
     :Returns:
-    - Un JSONResponse con la lista de publicaciones.
+    - Un JSONResponse con la lista de publicaciones y URLs de video.
     """
-    #collection = get_client(database="UCOfit", collection="publicacion")
-"""
     try:
-    #    publicaciones = list(collection.find())
-    
+        collection = get_mongo_data('publicacion')
+        publicaciones = list(collection.find())
         for pub in publicaciones:
             if "_id" in pub:
                 pub["_id"] = str(pub["_id"])
-    
+            if "video" in pub and isinstance(pub["video"], str):
+                video_id = str(pub["video"])
+                pub["video_url"] = f"http://localhost:8000/publicacion/video/{video_id}"
+                pub["video"] = video_id
+            if "fecha_creacion" in pub and pub["fecha_creacion"]:
+                pub["fecha_creacion"] = pub["fecha_creacion"].isoformat()
+
         return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
     except Exception as e:
         return JSONResponse(
             content={"msg": f"Error al listar publicaciones: {e}"}, status_code=500
-        )"""
+        )
+
+
+@router.get("/video/{video_id}")
+def obtener_video_endpoint(video_id: str):
+    """Devuelve el stream del video almacenado en GridFS por su id"""
+    try:
+        collection = get_mongo_data('publicacion')
+        db = collection.database
+        fs = GridFS(db)
+        grid_out = fs.get(ObjectId(video_id))
+
+        def iterfile():
+            chunk = grid_out.read(1024 * 1024)
+            while chunk:
+                yield chunk
+                chunk = grid_out.read(1024 * 1024)
+
+        media_type = getattr(grid_out, 'content_type', 'application/octet-stream') or 'application/octet-stream'
+        return StreamingResponse(iterfile(), media_type=media_type)
+    except Exception as e:
+        return JSONResponse(
+            content={"msg": f"Error al obtener el video: {e}"}, status_code=500
+        )
 
 
 @router.get("/usuario")
 def listar_publicaciones_usuario(usuario: dict = Depends(datos_usuario)):
-    """Lista todas las publicaciones de un usuario específico
+    """Lista todas las publicaciones de un usuario específico con URLs de video integradas
 
     :args:
     - usuario: datos del usuario autenticado.
 
     :Returns:
-    - Un JSONResponse con la lista de publicaciones del usuario.
+    - Un JSONResponse con la lista de publicaciones del usuario y URLs de video.
     """
-    """collection = get_client(database="UCOfit", collection="publicacion")
-
     try:
+        collection = get_mongo_data('publicacion')
         publicaciones = list(collection.find({"usuario_id": usuario["email"]}))
 
         for pub in publicaciones:
             if "_id" in pub:
                 pub["_id"] = str(pub["_id"])
+            if "video" in pub and isinstance(pub["video"], str):
+                video_id = str(pub["video"])
+                pub["video_url"] = f"http://localhost:8000/publicacion/video/{video_id}"
+                pub["video"] = video_id
+            if "fecha_creacion" in pub and pub["fecha_creacion"]:
+                pub["fecha_creacion"] = pub["fecha_creacion"].isoformat()
 
         return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
     except Exception as e:
@@ -92,7 +152,7 @@ def listar_publicaciones_usuario(usuario: dict = Depends(datos_usuario)):
             content={"msg": f"Error al listar publicaciones del usuario: {e}"},
             status_code=500,
         )
-"""
+
 
 @router.put("/editar")
 def editar_publicacion(

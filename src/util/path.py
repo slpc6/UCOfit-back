@@ -4,6 +4,7 @@ import os
 
 
 class Path:
+    """Clase para administriar las diferentes rutas del proyecto"""
 
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     """Ruta base del proyecto"""

@@ -1,19 +1,20 @@
 """Modulo para la gestion de usuarios"""
 
-from fastapi import APIRouter, Depends
-from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-import os
+
+
+from fastapi import APIRouter, Depends
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 
 
 from model.autenticacion import Token
 from util.load_data import get_auth, get_mongo_data, get_secrets
 
-router = APIRouter(prefix="/usuario", 
+router = APIRouter(prefix="/usuario",
                    tags=["usuario"])
 OA2 = get_auth()
 DATA = get_mongo_data()
@@ -38,9 +39,7 @@ def login(usuario: OAuth2PasswordRequestForm = Depends()) -> Token:
             return JSONResponse(status_code=404, content={"msg": "Usuario no encontrado"})
         if not bcrypt.checkpw(str(usuario.password).encode('utf-8'), db_user["password"]):
             return JSONResponse(status_code=400, content={"msg": "Contraseña incorrecta"})
-        
-        SECRET_KEY = os.getenv("SECRET_KEY")
-        ALGORITHM = os.getenv("ALGORITHM")
+
         expire = datetime.now(timezone.utc) + timedelta(hours=2)
         payload = {
             "sub": str(db_user["_id"]),
@@ -56,9 +55,17 @@ def login(usuario: OAuth2PasswordRequestForm = Depends()) -> Token:
 
 @router.post('/logout')
 def loguot(token: str = Depends(OA2)) -> Token:
+    """Metodo para cerrar la sesion del usuario
+    :args:
+    - token: Token de la secion del usuario
+    
+    :returns:
+    - JSONResponse: Respuesta de la API
+    
+    """
     try:
         token = ''
         return Token(access_token=token)
-    
+
     except Exception as e:
         JSONResponse(status_code=500, content={"msg": f"Error al obtener usuarios conectados: {e}"})

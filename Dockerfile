@@ -16,4 +16,4 @@ RUN python -m venv /UCOfit-back/venv \
 EXPOSE 8000
 
 # Comando para ejecutar la aplicación
-CMD ["/UCOfit-back/venv/bin/python", "main.py"]
+CMD ["/UCOfit-back/venv/bin/python", "src/main.py"]

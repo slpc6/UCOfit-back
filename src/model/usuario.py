@@ -36,10 +36,10 @@ class Usuario(BaseModel):
         """
         errores: list[str] = []
 
-        if not isinstance(self.nombre, str) or not 1 <= len(self.nombre) <= 50:
+        if not isinstance(self.nombre.strip(), str) or not 1 <= len(self.nombre) <= 50:
             errores.append("El nombre debe tener entre 1 y 50 caracteres.")
 
-        if not isinstance(self.apellido, str) or not 1 <= len(self.apellido) <= 50:
+        if not isinstance(self.apellido.strip(), str) or not 1 <= len(self.apellido) <= 50:
             errores.append("El apellido debe tener entre 1 y 50 caracteres.")
 
         if not isinstance(self.email, EmailStr) or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", self.email):
@@ -48,7 +48,7 @@ class Usuario(BaseModel):
         if not isinstance(self.password, str) or not 8 <= len(self.password) <= 128:
             errores.append("La contraseña debe tener entre 8 y 128 caracteres.")
 
-        if not isinstance(self.descripcion, str) or len(self.descripcion) > 500:
+        if not isinstance(self.descripcion.strip(), str) or len(self.descripcion) > 500:
             errores.append("La descripción no puede superar los 500 caracteres.")
 
         if errores:

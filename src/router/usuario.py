@@ -29,7 +29,7 @@ def registrar(usuario: Usuario) -> JSONResponse:
     
     """
     try:
-        usuario.validarUsuario()
+        usuario.validar_usuario()
         usuario_dict = usuario.model_dump()
 
         if DATA.find_one({"email": usuario_dict["email"]}):

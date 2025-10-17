@@ -154,6 +154,31 @@ def listar_publicaciones_usuario(usuario: dict = Depends(datos_usuario)):
         )
 
 
+@router.get("/{publicacion_id}")
+def obtener_publicacion(publicacion_id: str):
+    """Devuelve una publicacion filtrada por id
+
+    :args:
+    - publicacion_id: datos del usuario autenticado.
+
+    :Returns:
+    - Un JSONResponse con la publicacion encontrada.
+    """
+    try:
+        collection = get_mongo_data('publicacion')
+        publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
+        if not publicacion:
+            JSONResponse(content={"msg": "Publicacion no encontrada"}, status_code=200)
+        publicacion["_id"] = str(publicacion["_id"])
+
+        return JSONResponse(content=publicacion, status_code=200)
+    except Exception as e:
+        return JSONResponse(
+            content={"msg": f"Error al listar publicaciones del usuario: {e}"},
+            status_code=500,
+        )
+
+
 @router.put("/editar")
 def editar_publicacion(
     publicacion_id: str,

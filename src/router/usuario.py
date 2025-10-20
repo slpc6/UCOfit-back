@@ -34,16 +34,16 @@ def registrar(usuario: Usuario) -> JSONResponse:
 
         if DATA.find_one({"email": usuario_dict["email"]}):
             return JSONResponse(
-                status_code=400, 
+                status_code=400,
                 content={"msg": "Ya existe un usuario con ese correo."})
 
         usuario_dict["password"] = bcrypt.hashpw(
-            usuario_dict["password"].encode('utf-8'), 
+            usuario_dict["password"].encode('utf-8'),
             bcrypt.gensalt())
 
         DATA.insert_one(usuario_dict)
         return JSONResponse(
-            status_code=201, 
+            status_code=201,
             content={"msg": "Usuario registrado correctamente"})
 
     except Exception as e:

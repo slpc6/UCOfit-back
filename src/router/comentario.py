@@ -1,5 +1,6 @@
 """Punto de gestion de los endpoints que involucran manejo de comentarios"""
 
+from datetime import datetime
 from bson import ObjectId
 from fastapi.params import Depends
 from fastapi.responses import JSONResponse
@@ -12,7 +13,7 @@ from util.load_data import get_mongo_data
 router = APIRouter(prefix="/comentario", tags=["comentario"])
 
 
-@router.post("/comentar")
+@router.post("/comentar/{publicacion_id}")
 def crear_comentario(
     publicacion_id: str,
     comentario: Comentario,
@@ -28,10 +29,20 @@ def crear_comentario(
     """
     try:
         collection = get_mongo_data("publicacion")
-        publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-        publicacion["comentario"].append(comentario)
-        collection.update_one(publicacion["_id"], publicacion)
 
-        return JSONResponse(status_code=201, content= {"msg": "Comentario Enviado."})
+        nuevo_comentario = comentario.model_dump()
+        nuevo_comentario["usuario_id"] = usuario.get("email", "")
+        nuevo_comentario["comentario_id"] = str(ObjectId())
+        nuevo_comentario["fecha"] = datetime.now()
+
+        result = collection.update_one(
+            {"_id": ObjectId(publicacion_id)},
+            {"$push": {"comentarios": nuevo_comentario}}
+        )
+
+        if result.matched_count == 0:
+            return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
+
+        return JSONResponse(status_code=201, content={"msg": "Comentario enviado."})
     except Exception as e:
         return JSONResponse(status_code=500, content={"msg": f"Error al enviar el comentario: {e}"})

@@ -42,7 +42,7 @@ class Usuario(BaseModel):
         if not isinstance(self.apellido.strip(), str) or not 1 <= len(self.apellido) <= 50:
             errores.append("El apellido debe tener entre 1 y 50 caracteres.")
 
-        if not isinstance(self.email, EmailStr) or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", self.email):
+        if not isinstance(self.email, str) or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", self.email):
             errores.append("El correo electrónico no tiene un formato válido.")
 
         if not isinstance(self.password, str) or not 8 <= len(self.password) <= 128:

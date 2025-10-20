@@ -1,5 +1,6 @@
 """Modulo para la gestion de los endpoints relaciondos con publicaciones"""
 
+from datetime import datetime
 from typing import Optional
 from fastapi.responses import StreamingResponse
 from fastapi import APIRouter, Depends, File, UploadFile, Form
@@ -13,6 +14,23 @@ from util.load_data import get_mongo_data
 
 
 router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
+
+
+def convertir_fechas_a_string(doc):
+    """Convierte todas las fechas datetime a string en un documento"""
+    if isinstance(doc, dict):
+        for key, value in doc.items():
+            if isinstance(value, datetime):
+                doc[key] = value.isoformat()
+            elif isinstance(value, list):
+                for item in value:
+                    convertir_fechas_a_string(item)
+            elif isinstance(value, dict):
+                convertir_fechas_a_string(value)
+    elif isinstance(doc, list):
+        for item in doc:
+            convertir_fechas_a_string(item)
+    return doc
 
 
 @router.post("/crear")
@@ -89,8 +107,9 @@ def listar_publicaciones(usuario: dict = Depends(datos_usuario)):
                 video_id = str(pub["video"])
                 pub["video_url"] = f"http://localhost:8000/publicacion/video/{video_id}"
                 pub["video"] = video_id
-            if "fecha_creacion" in pub and pub["fecha_creacion"]:
-                pub["fecha_creacion"] = pub["fecha_creacion"].isoformat()
+            
+            # Convertir todas las fechas a string
+            convertir_fechas_a_string(pub)
 
         return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
     except Exception as e:
@@ -143,8 +162,9 @@ def listar_publicaciones_usuario(usuario: dict = Depends(datos_usuario)):
                 video_id = str(pub["video"])
                 pub["video_url"] = f"http://localhost:8000/publicacion/video/{video_id}"
                 pub["video"] = video_id
-            if "fecha_creacion" in pub and pub["fecha_creacion"]:
-                pub["fecha_creacion"] = pub["fecha_creacion"].isoformat()
+            
+            # Convertir todas las fechas a string
+            convertir_fechas_a_string(pub)
 
         return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
     except Exception as e:
@@ -168,8 +188,12 @@ def obtener_publicacion(publicacion_id: str):
         collection = get_mongo_data('publicacion')
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
-            JSONResponse(content={"msg": "Publicacion no encontrada"}, status_code=200)
+            return JSONResponse(content={"msg": "Publicacion no encontrada"}, status_code=404)
+        
         publicacion["_id"] = str(publicacion["_id"])
+        
+        # Convertir todas las fechas a string
+        convertir_fechas_a_string(publicacion)
 
         return JSONResponse(content=publicacion, status_code=200)
     except Exception as e:

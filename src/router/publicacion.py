@@ -1,6 +1,7 @@
 """Modulo para la gestion de los endpoints relaciondos con publicaciones"""
 
 from datetime import datetime
+from os import path
 from typing import Optional
 from fastapi.responses import StreamingResponse
 from fastapi import APIRouter, Depends, File, UploadFile, Form
@@ -11,6 +12,7 @@ from bson.objectid import ObjectId
 
 from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
+from util.path import Path
 
 
 router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
@@ -105,10 +107,9 @@ def listar_publicaciones(usuario: dict = Depends(datos_usuario)):
                 pub["_id"] = str(pub["_id"])
             if "video" in pub and isinstance(pub["video"], str):
                 video_id = str(pub["video"])
-                pub["video_url"] = f"http://localhost:8000/publicacion/video/{video_id}"
+                pub["video_url"] = f"{Path.VIDEO}/{video_id}"
                 pub["video"] = video_id
-            
-            # Convertir todas las fechas a string
+
             convertir_fechas_a_string(pub)
 
         return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
@@ -160,10 +161,9 @@ def listar_publicaciones_usuario(usuario: dict = Depends(datos_usuario)):
                 pub["_id"] = str(pub["_id"])
             if "video" in pub and isinstance(pub["video"], str):
                 video_id = str(pub["video"])
-                pub["video_url"] = f"http://localhost:8000/publicacion/video/{video_id}"
+                pub["video_url"] = f"{Path.VIDEO}/{video_id}"
                 pub["video"] = video_id
-            
-            # Convertir todas las fechas a string
+
             convertir_fechas_a_string(pub)
 
         return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
@@ -189,10 +189,8 @@ def obtener_publicacion(publicacion_id: str):
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(content={"msg": "Publicacion no encontrada"}, status_code=404)
-        
+
         publicacion["_id"] = str(publicacion["_id"])
-        
-        # Convertir todas las fechas a string
         convertir_fechas_a_string(publicacion)
 
         return JSONResponse(content=publicacion, status_code=200)
@@ -223,62 +221,57 @@ def editar_publicacion(
     """
     try:
         collection = get_mongo_data('publicacion')
-        
-        # Verificar que la publicación existe
+
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(
-                content={"msg": "Publicación no encontrada"}, 
+                content={"msg": "Publicación no encontrada"},
                 status_code=404
             )
-        
-        # Verificar permisos - solo el autor puede editar
+
         if publicacion.get("usuario_id") != usuario["email"]:
             return JSONResponse(
                 content={"msg": "No tienes permiso para editar esta publicación"},
                 status_code=403,
             )
-        
-        # Construir datos de actualización
+
         update_data = {}
         if titulo is not None:
             update_data["titulo"] = titulo
         if descripcion is not None:
             update_data["descripcion"] = descripcion
-        
-        # Verificar que hay datos para actualizar
+
         if not update_data:
             return JSONResponse(
                 content={"msg": "No se proporcionaron datos para actualizar"},
                 status_code=400,
             )
-        
-        # Actualizar la publicación
+
         result = collection.update_one(
-            {"_id": ObjectId(publicacion_id)}, 
+            {"_id": ObjectId(publicacion_id)},
             {"$set": update_data}
         )
-        
+
         if result.modified_count == 0:
             return JSONResponse(
                 content={"msg": "No se realizaron cambios en la publicación"},
                 status_code=200
             )
-        
+
         return JSONResponse(
-            content={"msg": "Publicación actualizada con éxito"}, 
+            content={"msg": "Publicación actualizada con éxito"},
             status_code=200
         )
-        
+
     except Exception as e:
         return JSONResponse(
-            content={"msg": f"Error al editar la publicación: {e}"}, 
+            content={"msg": f"Error al editar la publicación: {e}"},
             status_code=500
         )
 
 @router.delete("/eliminar/{publicacion_id}")
 def eliminar_publicacion(
-    publicacion_id: str, 
+    publicacion_id: str,
     usuario: dict = Depends(datos_usuario)
 ):
     """Elimina una publicación existente
@@ -292,48 +285,43 @@ def eliminar_publicacion(
     """
     try:
         collection = get_mongo_data('publicacion')
-        
-        # Verificar que la publicación existe
+
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(
-                content={"msg": "Publicación no encontrada"}, 
+                content={"msg": "Publicación no encontrada"},
                 status_code=404
             )
-        
-        # Verificar permisos - solo el autor puede eliminar
+
         if publicacion.get("usuario_id") != usuario["email"]:
             return JSONResponse(
                 content={"msg": "No tienes permiso para eliminar esta publicación"},
                 status_code=403,
             )
-        
-        # Eliminar el video de GridFS si existe
+
         if "video" in publicacion and publicacion["video"]:
             try:
                 db = collection.database
                 fs = GridFS(db)
                 fs.delete(ObjectId(publicacion["video"]))
             except Exception as e:
-                # Log el error pero continúa con la eliminación de la publicación
                 print(f"Error al eliminar video de GridFS: {e}")
-        
-        # Eliminar la publicación
+
         result = collection.delete_one({"_id": ObjectId(publicacion_id)})
-        
+
         if result.deleted_count == 0:
             return JSONResponse(
                 content={"msg": "No se pudo eliminar la publicación"},
                 status_code=500
             )
-        
+
         return JSONResponse(
-            content={"msg": "Publicación eliminada con éxito"}, 
+            content={"msg": "Publicación eliminada con éxito"},
             status_code=200
         )
-        
+
     except Exception as e:
         return JSONResponse(
-            content={"msg": f"Error al eliminar la publicación: {e}"}, 
+            content={"msg": f"Error al eliminar la publicación: {e}"},
             status_code=500
         )

@@ -10,10 +10,13 @@ class Path:
     """Ruta base del proyecto"""
 
     ROUTERS = os.path.join(ROOT, "router")
-    """Ruta a la carpeta de los endpoits de la api"""
+    """Ruta a la carpeta de los endpoits de la api."""
 
     MODELS = os.path.join(ROOT, "model")
-    """Ruta a la carpeta de las entidades de dominio"""
+    """Ruta a la carpeta de las entidades de dominio."""
 
     UTIL = os.path.join(ROOT, "util")
-    """Ruta a la carpeta de los utilitarios de la aplicacion"""
+    """Ruta a la carpeta de los utilitarios de la aplicacion."""
+
+    VIDEO = "https://ucofit-back.onrender.com/publicacion/video"
+    """Ruta donde se buscaran los videos para mostrar al usuario."""

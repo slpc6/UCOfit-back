@@ -31,66 +31,53 @@ def puntuar_publicacion(
     """
     try:
         collection = get_mongo_data("publicacion")
-        
-        # Verificar que la publicación existe
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
-        
-        # Verificar que el usuario no haya puntuado antes
+
         usuario_id = usuario.get("email", "")
         puntuaciones_existentes = publicacion.get("puntuaciones", [])
-        
-        # Buscar si el usuario ya puntuó
         for p in puntuaciones_existentes:
             if p.get("usuario_id") == usuario_id:
                 return JSONResponse(
                     status_code=400, 
                     content={"msg": "Ya has puntuado esta publicación"}
                 )
-        
-        # Validar que la puntuación esté entre 1 y 5
-        if not (1 <= puntuacion.puntuacion <= 5):
+
+        if not 1 <= puntuacion.puntuacion <= 5:
             return JSONResponse(
                 status_code=400, 
                 content={"msg": "La puntuación debe estar entre 1 y 5"}
             )
-        
-        # Crear nueva puntuación
+
         nueva_puntuacion = {
             "usuario_id": usuario_id,
             "puntuacion": puntuacion.puntuacion,
             "fecha": datetime.now()
         }
-        
-        # Agregar la puntuación al array
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
             {"$push": {"puntuaciones": nueva_puntuacion}}
         )
-        
-        # Calcular nuevo promedio
         puntuaciones_actualizadas = puntuaciones_existentes + [nueva_puntuacion]
         promedio = sum(p["puntuacion"] for p in puntuaciones_actualizadas) / len(puntuaciones_actualizadas)
-        
-        # Actualizar el promedio en la publicación
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
             {"$set": {"puntuacion_promedio": round(promedio, 2)}}
         )
-        
+
         return JSONResponse(
-            status_code=201, 
+            status_code=201,
             content={
                 "msg": "Puntuación registrada correctamente",
                 "promedio": round(promedio, 2),
                 "total_puntuaciones": len(puntuaciones_actualizadas)
             }
         )
-        
+
     except Exception as e:
         return JSONResponse(
-            status_code=500, 
+            status_code=500,
             content={"msg": f"Error al puntuar la publicación: {e}"}
         )
 
@@ -107,13 +94,12 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
     """
     try:
         collection = get_mongo_data("publicacion")
-        
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
-        
+
         puntuaciones = publicacion.get("puntuaciones", [])
-        
+
         if not puntuaciones:
             return JSONResponse(
                 status_code=200, 
@@ -123,17 +109,15 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
                     "puntuaciones": []
                 }
             )
-        
+
         promedio = sum(p["puntuacion"] for p in puntuaciones) / len(puntuaciones)
-        
-        # Convertir fechas a string para JSON
         puntuaciones_formateadas = []
         for p in puntuaciones:
             p_formateada = p.copy()
             if isinstance(p_formateada.get("fecha"), datetime):
                 p_formateada["fecha"] = p_formateada["fecha"].isoformat()
             puntuaciones_formateadas.append(p_formateada)
-        
+
         return JSONResponse(
             status_code=200,
             content={
@@ -142,7 +126,7 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
                 "puntuaciones": puntuaciones_formateadas
             }
         )
-        
+
     except Exception as e:
         return JSONResponse(
             status_code=500,
@@ -166,22 +150,20 @@ def eliminar_puntuacion(
     """
     try:
         collection = get_mongo_data("publicacion")
-        
+
         usuario_id = usuario.get("email", "")
-        
-        # Eliminar la puntuación del usuario
+
         result = collection.update_one(
             {"_id": ObjectId(publicacion_id)},
             {"$pull": {"puntuaciones": {"usuario_id": usuario_id}}}
         )
-        
+
         if result.matched_count == 0:
             return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
-        
-        # Recalcular promedio
+
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         puntuaciones = publicacion.get("puntuaciones", [])
-        
+
         if puntuaciones:
             promedio = sum(p["puntuacion"] for p in puntuaciones) / len(puntuaciones)
             collection.update_one(
@@ -193,12 +175,12 @@ def eliminar_puntuacion(
                 {"_id": ObjectId(publicacion_id)},
                 {"$set": {"puntuacion_promedio": 0}}
             )
-        
+
         return JSONResponse(
             status_code=200,
             content={"msg": "Puntuación eliminada correctamente"}
         )
-        
+
     except Exception as e:
         return JSONResponse(
             status_code=500,

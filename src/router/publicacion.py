@@ -203,12 +203,11 @@ def obtener_publicacion(publicacion_id: str):
         )
 
 
-@router.put("/editar")
+@router.put("/editar/{publicacion_id}")
 def editar_publicacion(
     publicacion_id: str,
     titulo: Optional[str] = None,
     descripcion: Optional[str] = None,
-    video: Optional[str] = None,
     usuario: dict = Depends(datos_usuario),
 ):
     """Actualiza una publicación existente
@@ -217,57 +216,70 @@ def editar_publicacion(
     - publicacion_id: id de la publicación a editar.
     - titulo: nuevo título (opcional).
     - descripcion: nueva descripción (opcional).
-    - video: nuevo enlace al video (opcional).
     - usuario: datos del usuario autenticado.
 
     :Returns:
     - Un JSONResponse con mensaje de éxito o error.
     """
-    """
-    collection = get_client(database="UCOfit", collection="publicacion")
-
     try:
+        collection = get_mongo_data('publicacion')
+        
+        # Verificar que la publicación existe
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-
         if not publicacion:
             return JSONResponse(
-                content={"msg": "Publicación no encontrada"}, status_code=404
+                content={"msg": "Publicación no encontrada"}, 
+                status_code=404
             )
-
+        
+        # Verificar permisos - solo el autor puede editar
         if publicacion.get("usuario_id") != usuario["email"]:
             return JSONResponse(
                 content={"msg": "No tienes permiso para editar esta publicación"},
                 status_code=403,
             )
-
+        
+        # Construir datos de actualización
         update_data = {}
-        if titulo:
+        if titulo is not None:
             update_data["titulo"] = titulo
-        if descripcion:
+        if descripcion is not None:
             update_data["descripcion"] = descripcion
-        if video:
-            update_data["video"] = video
-
+        
+        # Verificar que hay datos para actualizar
         if not update_data:
             return JSONResponse(
                 content={"msg": "No se proporcionaron datos para actualizar"},
                 status_code=400,
             )
-
-        collection.update_one({"_id": ObjectId(publicacion_id)}, {"$set": update_data})
-
-        return JSONResponse(
-            content={"msg": "Publicación actualizada con éxito"}, status_code=200
+        
+        # Actualizar la publicación
+        result = collection.update_one(
+            {"_id": ObjectId(publicacion_id)}, 
+            {"$set": update_data}
         )
+        
+        if result.modified_count == 0:
+            return JSONResponse(
+                content={"msg": "No se realizaron cambios en la publicación"},
+                status_code=200
+            )
+        
+        return JSONResponse(
+            content={"msg": "Publicación actualizada con éxito"}, 
+            status_code=200
+        )
+        
     except Exception as e:
         return JSONResponse(
-            content={"msg": f"Error al editar la publicación: {e}"}, status_code=500
-        )"""
-
+            content={"msg": f"Error al editar la publicación: {e}"}, 
+            status_code=500
+        )
 
 @router.delete("/eliminar/{publicacion_id}")
 def eliminar_publicacion(
-    publicacion_id: str, usuario: dict = Depends(datos_usuario)
+    publicacion_id: str, 
+    usuario: dict = Depends(datos_usuario)
 ):
     """Elimina una publicación existente
 
@@ -278,31 +290,50 @@ def eliminar_publicacion(
     :Returns:
     - Un JSONResponse con mensaje de éxito o error.
     """
-    """collection = get_client(database="UCOfit", collection="publicacion")
-
     try:
+        collection = get_mongo_data('publicacion')
+        
+        # Verificar que la publicación existe
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
-
         if not publicacion:
             return JSONResponse(
-                content={"msg": "Publicación no encontrada"}, status_code=404
+                content={"msg": "Publicación no encontrada"}, 
+                status_code=404
             )
-
-        if (
-            publicacion.get("usuario_id") != usuario["email"]
-            and usuario.get("rol") != "administrador"
-        ):
+        
+        # Verificar permisos - solo el autor puede eliminar
+        if publicacion.get("usuario_id") != usuario["email"]:
             return JSONResponse(
                 content={"msg": "No tienes permiso para eliminar esta publicación"},
                 status_code=403,
             )
-
-        collection.delete_one({"_id": ObjectId(publicacion_id)})
-
+        
+        # Eliminar el video de GridFS si existe
+        if "video" in publicacion and publicacion["video"]:
+            try:
+                db = collection.database
+                fs = GridFS(db)
+                fs.delete(ObjectId(publicacion["video"]))
+            except Exception as e:
+                # Log el error pero continúa con la eliminación de la publicación
+                print(f"Error al eliminar video de GridFS: {e}")
+        
+        # Eliminar la publicación
+        result = collection.delete_one({"_id": ObjectId(publicacion_id)})
+        
+        if result.deleted_count == 0:
+            return JSONResponse(
+                content={"msg": "No se pudo eliminar la publicación"},
+                status_code=500
+            )
+        
         return JSONResponse(
-            content={"msg": "Publicación eliminada con éxito"}, status_code=200
+            content={"msg": "Publicación eliminada con éxito"}, 
+            status_code=200
         )
+        
     except Exception as e:
         return JSONResponse(
-            content={"msg": f"Error al eliminar la publicación: {e}"}, status_code=500
-        )"""
+            content={"msg": f"Error al eliminar la publicación: {e}"}, 
+            status_code=500
+        )

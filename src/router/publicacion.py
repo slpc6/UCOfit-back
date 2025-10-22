@@ -1,7 +1,6 @@
 """Modulo para la gestion de los endpoints relaciondos con publicaciones"""
 
 from datetime import datetime
-from os import path
 from typing import Optional
 from fastapi.responses import StreamingResponse
 from fastapi import APIRouter, Depends, File, UploadFile, Form
@@ -18,8 +17,16 @@ from util.path import Path
 router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
 
 
-def convertir_fechas_a_string(doc):
-    """Convierte todas las fechas datetime a string en un documento"""
+def convertir_fechas_a_string(doc: dict | list) -> dict | list:
+    """Convierte todas las fechas datetime a string en un documento
+    
+    Args:
+    - doc: diccionario o lista a convertir
+
+    Returns:
+    - diccionario o lista con fechas convertidas a string
+    
+    """
     if isinstance(doc, dict):
         for key, value in doc.items():
             if isinstance(value, datetime):
@@ -40,7 +47,7 @@ def crear_publicacion(
     titulo: str = Form(...),
     descripcion: str = Form(...),
     video: UploadFile = File(...),
-    usuario: dict = Depends(datos_usuario)
+    usuario: dict = Depends(datos_usuario),
 ) -> JSONResponse:
     """Crea una nueva publicación en la base de datos
 
@@ -54,7 +61,7 @@ def crear_publicacion(
     - Un JSONResponse con mensaje de éxito o error.
     """
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
 
         db = collection.database
         fs = GridFS(db)
@@ -70,7 +77,7 @@ def crear_publicacion(
             "video": str(file_id),
             "usuario_id": usuario["email"],
             "comentarios": [],
-            "puntuacion": 0
+            "puntuacion": 0,
         }
 
         result = collection.insert_one(publicacion_doc)
@@ -79,9 +86,9 @@ def crear_publicacion(
             content={
                 "msg": "Publicación creada con éxito",
                 "publicacion_id": str(result.inserted_id),
-                "video_id": str(file_id)
+                "video_id": str(file_id),
             },
-            status_code=201
+            status_code=201,
         )
     except Exception as e:
         return JSONResponse(
@@ -100,7 +107,7 @@ def listar_publicaciones(usuario: dict = Depends(datos_usuario)):
     - Un JSONResponse con la lista de publicaciones y URLs de video.
     """
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
         publicaciones = list(collection.find())
         for pub in publicaciones:
             if "_id" in pub:
@@ -123,7 +130,7 @@ def listar_publicaciones(usuario: dict = Depends(datos_usuario)):
 def obtener_video_endpoint(video_id: str):
     """Devuelve el stream del video almacenado en GridFS por su id"""
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
         db = collection.database
         fs = GridFS(db)
         grid_out = fs.get(ObjectId(video_id))
@@ -134,7 +141,10 @@ def obtener_video_endpoint(video_id: str):
                 yield chunk
                 chunk = grid_out.read(1024 * 1024)
 
-        media_type = getattr(grid_out, 'content_type', 'application/octet-stream') or 'application/octet-stream'
+        media_type = (
+            getattr(grid_out, "content_type", "application/octet-stream")
+            or "application/octet-stream"
+        )
         return StreamingResponse(iterfile(), media_type=media_type)
     except Exception as e:
         return JSONResponse(
@@ -153,7 +163,7 @@ def listar_publicaciones_usuario(usuario: dict = Depends(datos_usuario)):
     - Un JSONResponse con la lista de publicaciones del usuario y URLs de video.
     """
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
         publicaciones = list(collection.find({"usuario_id": usuario["email"]}))
 
         for pub in publicaciones:
@@ -185,10 +195,12 @@ def obtener_publicacion(publicacion_id: str):
     - Un JSONResponse con la publicacion encontrada.
     """
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
-            return JSONResponse(content={"msg": "Publicacion no encontrada"}, status_code=404)
+            return JSONResponse(
+                content={"msg": "Publicacion no encontrada"}, status_code=404
+            )
 
         publicacion["_id"] = str(publicacion["_id"])
         convertir_fechas_a_string(publicacion)
@@ -220,13 +232,12 @@ def editar_publicacion(
     - Un JSONResponse con mensaje de éxito o error.
     """
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
 
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(
-                content={"msg": "Publicación no encontrada"},
-                status_code=404
+                content={"msg": "Publicación no encontrada"}, status_code=404
             )
 
         if publicacion.get("usuario_id") != usuario["email"]:
@@ -248,32 +259,27 @@ def editar_publicacion(
             )
 
         result = collection.update_one(
-            {"_id": ObjectId(publicacion_id)},
-            {"$set": update_data}
+            {"_id": ObjectId(publicacion_id)}, {"$set": update_data}
         )
 
         if result.modified_count == 0:
             return JSONResponse(
                 content={"msg": "No se realizaron cambios en la publicación"},
-                status_code=200
+                status_code=200,
             )
 
         return JSONResponse(
-            content={"msg": "Publicación actualizada con éxito"},
-            status_code=200
+            content={"msg": "Publicación actualizada con éxito"}, status_code=200
         )
 
     except Exception as e:
         return JSONResponse(
-            content={"msg": f"Error al editar la publicación: {e}"},
-            status_code=500
+            content={"msg": f"Error al editar la publicación: {e}"}, status_code=500
         )
 
+
 @router.delete("/eliminar/{publicacion_id}")
-def eliminar_publicacion(
-    publicacion_id: str,
-    usuario: dict = Depends(datos_usuario)
-):
+def eliminar_publicacion(publicacion_id: str, usuario: dict = Depends(datos_usuario)):
     """Elimina una publicación existente
 
     :args:
@@ -284,13 +290,12 @@ def eliminar_publicacion(
     - Un JSONResponse con mensaje de éxito o error.
     """
     try:
-        collection = get_mongo_data('publicacion')
+        collection = get_mongo_data("publicacion")
 
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
             return JSONResponse(
-                content={"msg": "Publicación no encontrada"},
-                status_code=404
+                content={"msg": "Publicación no encontrada"}, status_code=404
             )
 
         if publicacion.get("usuario_id") != usuario["email"]:
@@ -311,17 +316,14 @@ def eliminar_publicacion(
 
         if result.deleted_count == 0:
             return JSONResponse(
-                content={"msg": "No se pudo eliminar la publicación"},
-                status_code=500
+                content={"msg": "No se pudo eliminar la publicación"}, status_code=500
             )
 
         return JSONResponse(
-            content={"msg": "Publicación eliminada con éxito"},
-            status_code=200
+            content={"msg": "Publicación eliminada con éxito"}, status_code=200
         )
 
     except Exception as e:
         return JSONResponse(
-            content={"msg": f"Error al eliminar la publicación: {e}"},
-            status_code=500
+            content={"msg": f"Error al eliminar la publicación: {e}"}, status_code=500
         )

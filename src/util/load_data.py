@@ -14,7 +14,7 @@ def get_auth():
     :Returns:
     - OAuth2PasswordBearer: Tipo de variable con el token de sesion
     del usuario
-    
+
     """
     oa2 = OAuth2PasswordBearer(tokenUrl="/usuario/login")
     return oa2
@@ -28,7 +28,7 @@ def get_mongo_data(coleccion: str = "usuarios"):
 
     :Returns:
     - Collection: Conexion con la base de datos buscada.
-    
+
     """
     data = MongoDBClientSingleton().get_collection("UCOfit", coleccion)
     return data
@@ -39,7 +39,7 @@ def get_secrets():
     :Returns:
     - Tupla con los valores cargados de las variables de
     encriptacion.
-    
+
     """
     key = os.getenv("SECRET_KEY")
     alg = os.getenv("ALGORITHM")

@@ -15,17 +15,15 @@ router = APIRouter(prefix="/puntuacion", tags=["puntuacion"])
 
 @router.post("/puntuar/{publicacion_id}")
 def puntuar_publicacion(
-    publicacion_id: str,
-    puntuacion: Puntuacion,
-    usuario: dict = Depends(datos_usuario)
+    publicacion_id: str, puntuacion: Puntuacion, usuario: dict = Depends(datos_usuario)
 ) -> JSONResponse:
     """Permite puntuar una publicación (1-5 estrellas)
-    
+
     Args:
     - publicacion_id: ID de la publicación a puntuar
     - puntuacion: Puntuación del usuario (1-5)
     - usuario: datos del usuario autenticado
-    
+
     Returns:
     - JSONResponse con el estado de la operación
     """
@@ -33,37 +31,39 @@ def puntuar_publicacion(
         collection = get_mongo_data("publicacion")
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
-            return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
+            return JSONResponse(
+                status_code=404, content={"msg": "Publicación no encontrada"}
+            )
 
         usuario_id = usuario.get("email", "")
         puntuaciones_existentes = publicacion.get("puntuaciones", [])
         for p in puntuaciones_existentes:
             if p.get("usuario_id") == usuario_id:
                 return JSONResponse(
-                    status_code=400, 
-                    content={"msg": "Ya has puntuado esta publicación"}
+                    status_code=400, content={"msg": "Ya has puntuado esta publicación"}
                 )
 
         if not 1 <= puntuacion.puntuacion <= 5:
             return JSONResponse(
-                status_code=400, 
-                content={"msg": "La puntuación debe estar entre 1 y 5"}
+                status_code=400, content={"msg": "La puntuación debe estar entre 1 y 5"}
             )
 
         nueva_puntuacion = {
             "usuario_id": usuario_id,
             "puntuacion": puntuacion.puntuacion,
-            "fecha": datetime.now()
+            "fecha": datetime.now(),
         }
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"$push": {"puntuaciones": nueva_puntuacion}}
+            {"$push": {"puntuaciones": nueva_puntuacion}},
         )
         puntuaciones_actualizadas = puntuaciones_existentes + [nueva_puntuacion]
-        promedio = sum(p["puntuacion"] for p in puntuaciones_actualizadas) / len(puntuaciones_actualizadas)
+        promedio = sum(p["puntuacion"] for p in puntuaciones_actualizadas) / len(
+            puntuaciones_actualizadas
+        )
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"$set": {"puntuacion_promedio": round(promedio, 2)}}
+            {"$set": {"puntuacion_promedio": round(promedio, 2)}},
         )
 
         return JSONResponse(
@@ -71,24 +71,23 @@ def puntuar_publicacion(
             content={
                 "msg": "Puntuación registrada correctamente",
                 "promedio": round(promedio, 2),
-                "total_puntuaciones": len(puntuaciones_actualizadas)
-            }
+                "total_puntuaciones": len(puntuaciones_actualizadas),
+            },
         )
 
     except Exception as e:
         return JSONResponse(
-            status_code=500,
-            content={"msg": f"Error al puntuar la publicación: {e}"}
+            status_code=500, content={"msg": f"Error al puntuar la publicación: {e}"}
         )
 
 
 @router.get("/promedio/{publicacion_id}")
 def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
     """Obtiene el promedio de puntuaciones de una publicación
-    
+
     Args:
     - publicacion_id: ID de la publicación
-    
+
     Returns:
     - JSONResponse con el promedio y detalles de puntuaciones
     """
@@ -96,18 +95,16 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
         collection = get_mongo_data("publicacion")
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
-            return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
+            return JSONResponse(
+                status_code=404, content={"msg": "Publicación no encontrada"}
+            )
 
         puntuaciones = publicacion.get("puntuaciones", [])
 
         if not puntuaciones:
             return JSONResponse(
-                status_code=200, 
-                content={
-                    "promedio": 0,
-                    "total_puntuaciones": 0,
-                    "puntuaciones": []
-                }
+                status_code=200,
+                content={"promedio": 0, "total_puntuaciones": 0, "puntuaciones": []},
             )
 
         promedio = sum(p["puntuacion"] for p in puntuaciones) / len(puntuaciones)
@@ -123,28 +120,26 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
             content={
                 "promedio": round(promedio, 2),
                 "total_puntuaciones": len(puntuaciones),
-                "puntuaciones": puntuaciones_formateadas
-            }
+                "puntuaciones": puntuaciones_formateadas,
+            },
         )
 
     except Exception as e:
         return JSONResponse(
-            status_code=500,
-            content={"msg": f"Error al obtener puntuaciones: {e}"}
+            status_code=500, content={"msg": f"Error al obtener puntuaciones: {e}"}
         )
 
 
 @router.delete("/eliminar/{publicacion_id}")
 def eliminar_puntuacion(
-    publicacion_id: str,
-    usuario: dict = Depends(datos_usuario)
+    publicacion_id: str, usuario: dict = Depends(datos_usuario)
 ) -> JSONResponse:
     """Elimina la puntuación de un usuario para una publicación
-    
+
     Args:
     - publicacion_id: ID de la publicación
     - usuario: datos del usuario autenticado
-    
+
     Returns:
     - JSONResponse con el estado de la operación
     """
@@ -155,11 +150,13 @@ def eliminar_puntuacion(
 
         result = collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"$pull": {"puntuaciones": {"usuario_id": usuario_id}}}
+            {"$pull": {"puntuaciones": {"usuario_id": usuario_id}}},
         )
 
         if result.matched_count == 0:
-            return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
+            return JSONResponse(
+                status_code=404, content={"msg": "Publicación no encontrada"}
+            )
 
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         puntuaciones = publicacion.get("puntuaciones", [])
@@ -168,21 +165,18 @@ def eliminar_puntuacion(
             promedio = sum(p["puntuacion"] for p in puntuaciones) / len(puntuaciones)
             collection.update_one(
                 {"_id": ObjectId(publicacion_id)},
-                {"$set": {"puntuacion_promedio": round(promedio, 2)}}
+                {"$set": {"puntuacion_promedio": round(promedio, 2)}},
             )
         else:
             collection.update_one(
-                {"_id": ObjectId(publicacion_id)},
-                {"$set": {"puntuacion_promedio": 0}}
+                {"_id": ObjectId(publicacion_id)}, {"$set": {"puntuacion_promedio": 0}}
             )
 
         return JSONResponse(
-            status_code=200,
-            content={"msg": "Puntuación eliminada correctamente"}
+            status_code=200, content={"msg": "Puntuación eliminada correctamente"}
         )
 
     except Exception as e:
         return JSONResponse(
-            status_code=500,
-            content={"msg": f"Error al eliminar puntuación: {e}"}
+            status_code=500, content={"msg": f"Error al eliminar puntuación: {e}"}
         )

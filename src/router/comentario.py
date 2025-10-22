@@ -15,9 +15,8 @@ router = APIRouter(prefix="/comentario", tags=["comentario"])
 
 @router.post("/comentar/{publicacion_id}")
 def crear_comentario(
-    publicacion_id: str,
-    comentario: Comentario,
-    usuario: dict = Depends(datos_usuario)) -> JSONResponse:
+    publicacion_id: str, comentario: Comentario, usuario: dict = Depends(datos_usuario)
+) -> JSONResponse:
     """Permite agregar un comentario a una publocacion
     Arg:
     - publicacion_id: Identificador unico de la publicacion a comentar.
@@ -37,12 +36,16 @@ def crear_comentario(
 
         result = collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"$push": {"comentarios": nuevo_comentario}}
+            {"$push": {"comentarios": nuevo_comentario}},
         )
 
         if result.matched_count == 0:
-            return JSONResponse(status_code=404, content={"msg": "Publicación no encontrada"})
+            return JSONResponse(
+                status_code=404, content={"msg": "Publicación no encontrada"}
+            )
 
         return JSONResponse(status_code=201, content={"msg": "Comentario enviado."})
     except Exception as e:
-        return JSONResponse(status_code=500, content={"msg": f"Error al enviar el comentario: {e}"})
+        return JSONResponse(
+            status_code=500, content={"msg": f"Error al enviar el comentario: {e}"}
+        )

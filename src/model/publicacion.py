@@ -26,8 +26,6 @@ class Publicacion(BaseModel):
     comentarios: List[Optional[Comentario]] = []
     """Comentarios de la publicacion"""
 
-
-
     def validar_publicacion(self):
         """Valida las reglas de negocio para una publicacion
 
@@ -39,9 +37,11 @@ class Publicacion(BaseModel):
         if not isinstance(self.titulo, str) or not 5 <= len(self.titulo) <= 30:
             errores.append("El titulo debe tener entre 5 y 30 caracteres.")
 
-        if not isinstance(self.descripcion, str) or not 10<= len(self.descripcion) <= 100:
+        if (
+            not isinstance(self.descripcion, str)
+            or not 10 <= len(self.descripcion) <= 100
+        ):
             errores.append("La descripcion debe tener entre 10 y 100 caracteres.")
-
 
         if errores:
             raise ValueError("; ".join(errores))

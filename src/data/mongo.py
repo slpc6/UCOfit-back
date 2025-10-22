@@ -1,19 +1,24 @@
 """Conexion con la base de datos de mongo"""
 
 import os
+
+from threading import Lock
 from dotenv import load_dotenv
 from pymongo.mongo_client import MongoClient
-from pymongo.read_preferences import Primary
 from pymongo.server_api import ServerApi
-from threading import Lock
 
 
 class MongoDBClientSingleton:
-    _instance = None
-    _lock = Lock()
+    """Instacia unica para conxion con la base de datos de mongo"""
 
+    _instance = None
+    """Instancia unica de la clase"""
+
+    _lock = Lock()
+    """Lock para la sincronizacion de la instancia"""
 
     def __new__(cls):
+        """Crea una instancia unica de la clase"""
         if not cls._instance:
             with cls._lock:
                 if not cls._instance:
@@ -23,11 +28,12 @@ class MongoDBClientSingleton:
 
 
     def __init__(self):
+        """Inicializa la instancia de la clase"""
         if self._initialized:
             return
         load_dotenv()
-        MONGO_URI = os.getenv("MONGO_URI")
-        self.client = MongoClient(MONGO_URI, server_api=ServerApi("1"))
+        mongo_ulr = os.getenv("MONGO_URI")
+        self.client = MongoClient(mongo_ulr, server_api=ServerApi("1"))
         try:
             self.client.admin.command("ping")
         except Exception as e:

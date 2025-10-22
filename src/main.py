@@ -12,9 +12,11 @@ from dotenv import load_dotenv
 from util.path import Path
 
 
-app = FastAPI(version="1.0.0",
-              title="UCOfit API",
-              description="Aplicacion de entrenamiento y motivacion para el deporte")
+app = FastAPI(
+    version="1.0.0",
+    title="UCOfit API",
+    description="Aplicacion de entrenamiento y motivacion para el deporte",
+)
 
 app.add_middleware(
     CORSMiddleware,

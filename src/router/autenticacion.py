@@ -3,7 +3,9 @@
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
+from dotenv import load_dotenv
 import jwt
+import os
 
 
 from fastapi import APIRouter, Depends
@@ -21,7 +23,7 @@ SECRET_KEY, ALGORITHM = get_secrets()
 
 
 @router.post(path="/login")
-def login(usuario: OAuth2PasswordRequestForm = Depends()) -> Token:
+def login(usuario: OAuth2PasswordRequestForm = Depends()) -> JSONResponse:
     """Metodo para iniciar sesion
     :args:
     - UsuarioLogin: Datos del usuario que se esta iniciando sesion
@@ -67,8 +69,13 @@ def loguot(token: str = Depends(OA2)) -> Token:
 
     """
     try:
-        token = ""
-        return Token(access_token=token)
+        load_dotenv()
+        os.environ["TOKEN_SECRET"] = ""
+
+        return JSONResponse(
+            status_code=200,
+            content={"msg": "Sesion cerrada correctamente"}
+        )
 
     except Exception as e:
         JSONResponse(

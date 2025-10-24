@@ -12,34 +12,9 @@ from bson.objectid import ObjectId
 from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
 from util.path import Path
-
+from util.json_utils import convertir_fechas_a_string
 
 router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
-
-
-def convertir_fechas_a_string(doc: dict | list) -> dict | list:
-    """Convierte todas las fechas datetime a string en un documento
-    
-    Args:
-    - doc: diccionario o lista a convertir
-
-    Returns:
-    - diccionario o lista con fechas convertidas a string
-    
-    """
-    if isinstance(doc, dict):
-        for key, value in doc.items():
-            if isinstance(value, datetime):
-                doc[key] = value.isoformat()
-            elif isinstance(value, list):
-                for item in value:
-                    convertir_fechas_a_string(item)
-            elif isinstance(value, dict):
-                convertir_fechas_a_string(value)
-    elif isinstance(doc, list):
-        for item in doc:
-            convertir_fechas_a_string(item)
-    return doc
 
 
 @router.post("/crear")
@@ -47,6 +22,7 @@ def crear_publicacion(
     titulo: str = Form(...),
     descripcion: str = Form(...),
     video: UploadFile = File(...),
+    reto_id: str = Form(...),
     usuario: dict = Depends(datos_usuario),
 ) -> JSONResponse:
     """Crea una nueva publicación en la base de datos
@@ -55,12 +31,28 @@ def crear_publicacion(
     - titulo: título de la publicación.
     - descripcion: descripción de la publicación.
     - video: archivo de video enviado como multipart/form-data.
+    - reto_id: ID del reto al que pertenece la publicación.
     - usuario: datos del usuario autenticado.
 
     :Returns:
     - Un JSONResponse con mensaje de éxito o error.
     """
     try:
+        retos_collection = get_mongo_data("retos")
+        reto = retos_collection.find_one({"_id": ObjectId(reto_id)})
+
+        if not reto:
+            return JSONResponse(
+                content={"msg": "Reto no encontrado"},
+                status_code=404
+            )
+
+        if datetime.now() > reto["fecha_expiracion"]:
+            return JSONResponse(
+                content={"msg": "El reto ha expirado"},
+                status_code=400
+            )
+
         collection = get_mongo_data("publicacion")
 
         db = collection.database
@@ -76,17 +68,18 @@ def crear_publicacion(
             "descripcion": descripcion,
             "video": str(file_id),
             "usuario_id": usuario["email"],
-            "comentarios": [],
-            "puntuacion": 0,
+            "reto_id": reto_id
         }
 
         result = collection.insert_one(publicacion_doc)
+        publicacion_id = str(result.inserted_id)
 
         return JSONResponse(
             content={
                 "msg": "Publicación creada con éxito",
-                "publicacion_id": str(result.inserted_id),
+                "publicacion_id": publicacion_id,
                 "video_id": str(file_id),
+                "reto_id": reto_id
             },
             status_code=201,
         )
@@ -123,6 +116,38 @@ def listar_publicaciones(usuario: dict = Depends(datos_usuario)):
     except Exception as e:
         return JSONResponse(
             content={"msg": f"Error al listar publicaciones: {e}"}, status_code=500
+        )
+
+
+@router.get("/reto/{reto_id}")
+def listar_publicaciones_reto(reto_id: str, usuario: dict = Depends(datos_usuario)):
+    """Lista todas las publicaciones de un reto específico
+
+    :args:
+    - reto_id: ID del reto
+    - usuario: datos del usuario autenticado
+
+    :Returns:
+    - Un JSONResponse con la lista de publicaciones del reto
+    """
+    try:
+        collection = get_mongo_data("publicacion")
+        publicaciones = list(collection.find({"reto_id": reto_id}))
+
+        for pub in publicaciones:
+            if "_id" in pub:
+                pub["_id"] = str(pub["_id"])
+            if "video" in pub and isinstance(pub["video"], str):
+                video_id = str(pub["video"])
+                pub["video_url"] = f"{Path.VIDEO}/{video_id}"
+                pub["video"] = video_id
+
+            convertir_fechas_a_string(pub)
+
+        return JSONResponse(content={"publicaciones": publicaciones}, status_code=200)
+    except Exception as e:
+        return JSONResponse(
+            content={"msg": f"Error al listar publicaciones del reto: {e}"}, status_code=500
         )
 
 

@@ -1,7 +1,6 @@
 """Modelo que representa los datos del usuario"""
 
 import re
-import base64
 
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field

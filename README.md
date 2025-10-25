@@ -61,6 +61,21 @@ src/
 - Principios SOLID aplicados
 - Código limpio y mantenible
 
+### 5. Refactorización con Modelos Pydantic
+- **Funciones simplificadas**: Reducción de argumentos múltiples usando modelos de datos
+- **Validación automática**: Pydantic valida automáticamente los datos de entrada
+- **Tipado fuerte**: Mejor documentación y detección de errores en tiempo de desarrollo
+- **Modelos específicos**: Request/Response models para cada operación
+
+#### Modelos Creados:
+- `RetoConPublicacionRequest` - Para crear reto con publicación inicial
+- `RetoConPublicacionResponse` - Respuesta de creación de reto con publicación
+- `PublicacionCrearRequest` - Para crear nuevas publicaciones
+- `PublicacionCrearResponse` - Respuesta de creación de publicación
+- `PublicacionEditarRequest` - Para editar publicaciones existentes
+- `ComentarioCrearRequest` - Para crear comentarios
+- `ComentarioResponse` - Respuesta de comentarios
+
 ## Instalación
 
 1. Clonar el repositorio
@@ -119,10 +134,54 @@ GMAIL_APP_PASSWORD=tu_app_password
 
 ### Retos
 - `POST /reto/crear` - Crear nuevo reto
+- `POST /reto/crear-con-publicacion` - Crear reto con publicación inicial
 - `GET /reto/listar` - Listar retos disponibles
 - `GET /reto/{id}` - Obtener reto específico
 - `PUT /reto/editar/{id}` - Editar reto
 - `DELETE /reto/eliminar/{id}` - Eliminar reto
+
+### Comentarios
+- `POST /comentario/comentar/{publicacion_id}` - Agregar comentario a publicación
+
+## Ejemplos de Uso
+
+### Crear Reto con Publicación Inicial
+```json
+POST /reto/crear-con-publicacion
+Content-Type: multipart/form-data
+
+{
+  "titulo_reto": "Reto de 30 días de ejercicio",
+  "descripcion_reto": "Completa 30 días consecutivos de ejercicio",
+  "titulo_publicacion": "Mi primer día",
+  "descripcion_publicacion": "Empezando mi reto de ejercicio",
+  "video": [archivo de video]
+}
+```
+
+### Crear Publicación
+```json
+POST /publicacion/crear
+Content-Type: multipart/form-data
+
+{
+  "titulo": "Mi progreso día 5",
+  "descripcion": "Completando el día 5 del reto",
+  "reto_id": "64a1b2c3d4e5f6789012345",
+  "video": [archivo de video]
+}
+```
+
+### Agregar Comentario
+```json
+POST /comentario/comentar/64a1b2c3d4e5f6789012345
+Content-Type: application/json
+
+{
+  "comentario": "¡Excelente progreso!",
+  "publicacion_id": "64a1b2c3d4e5f6789012345"
+}
+```
 
 ## Desarrollo
 

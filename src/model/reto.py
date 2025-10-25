@@ -140,3 +140,35 @@ class RetoResponse(BaseModel):
             dias_restantes=dias_restantes,
             is_expired=is_expired,
         )
+
+
+class RetoConPublicacionRequest(BaseModel):
+    """Modelo para crear un reto junto con su primera publicación."""
+
+    titulo_reto: str = Field(..., min_length=5, max_length=50)
+    """Título del reto"""
+
+    descripcion_reto: str = Field(..., min_length=10, max_length=200)
+    """Descripción del reto"""
+
+    titulo_publicacion: str = Field(..., min_length=5, max_length=30)
+    """Título de la publicación inicial"""
+
+    descripcion_publicacion: str = Field(..., min_length=10, max_length=100)
+    """Descripción de la publicación inicial"""
+
+
+class RetoConPublicacionResponse(BaseModel):
+    """Modelo de respuesta para la creación de reto con publicación."""
+
+    msg: str
+    """Mensaje de confirmación"""
+
+    reto_id: str
+    """ID del reto creado"""
+
+    publicacion_id: str
+    """ID de la publicación creada"""
+
+    video_id: str
+    """ID del video en GridFS"""

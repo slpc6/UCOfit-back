@@ -1,11 +1,11 @@
 """Utilidades para conversión de datos"""
 
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Union
 from bson.objectid import ObjectId
 
 
-def convertir_fechas_a_string(doc: Dict | List) -> Dict | List:
+def convertir_fechas_a_string(doc: Union[Dict, List]) -> Union[Dict, List]:
     """Convierte todas las fechas datetime a string en un documento
 
     Args:
@@ -30,7 +30,7 @@ def convertir_fechas_a_string(doc: Dict | List) -> Dict | List:
     return doc
 
 
-def convertir_objectid_a_string(doc: Dict | List) -> Dict | List:
+def convertir_objectid_a_string(doc: Union[Dict, List]) -> Union[Dict, List]:
     """Convierte todos los ObjectId a string en un documento
 
     Args:
@@ -56,7 +56,7 @@ def convertir_objectid_a_string(doc: Dict | List) -> Dict | List:
     return doc
 
 
-def limpiar_datos_para_json(doc: Dict | List) -> Dict | List:
+def limpiar_datos_para_json(doc: Union[Dict, List]) -> Union[Dict, List]:
     """Limpia un documento para serialización JSON
 
     Convierte datetime a string y ObjectId a string

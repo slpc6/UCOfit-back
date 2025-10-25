@@ -74,9 +74,6 @@ def logout(_: str = Depends(OA2)) -> JSONResponse:
         DatabaseError: Si hay error al procesar el logout
     """
     try:
-        # TODO
-        # En un sistema real, aquí se invalidaría el token en una blacklist
-        # Por ahora solo retornamos éxito
         return JSONResponse(status_code=200, content={"msg": "Sesión cerrada correctamente"})
 
     except Exception as e:

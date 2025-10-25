@@ -1,12 +1,12 @@
-"""Punto de gestion de los endpoints que involucran manejo de comentarios"""
+"""Punto de gestión de los endpoints que involucran manejo de comentarios."""
 
 from datetime import datetime
-from bson import ObjectId
-from fastapi.params import Depends
-from fastapi.responses import JSONResponse
-from fastapi import APIRouter
 
-from model.comentario import Comentario
+from bson import ObjectId
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
+
+from model.comentario import ComentarioCrearRequest
 from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
 from exceptions.custom_exceptions import DatabaseError, NotFoundError
@@ -17,28 +17,31 @@ router = APIRouter(prefix="/comentario", tags=["comentario"])
 
 @router.post("/comentar/{publicacion_id}")
 def crear_comentario(
-    publicacion_id: str, comentario: Comentario, usuario: dict = Depends(datos_usuario)
+    publicacion_id: str, datos: ComentarioCrearRequest, usuario: dict = Depends(datos_usuario)
 ) -> JSONResponse:
-    """Permite agregar un comentario a una publocacion
-    Arg:
-    - publicacion_id: Identificador unico de la publicacion a comentar.
-    - comentario: Comentario que se agregara a la publicacion.
-    - usuario: datos de sesion del usuario que comenta.
+    """Permite agregar un comentario a una publicación.
+
+    Args:
+        publicacion_id: Identificador único de la publicación a comentar
+        datos: Datos del comentario a crear
+        usuario: Datos de sesión del usuario que comenta
 
     Returns:
-    - Jsonresponse con el estado de la solicitud de creacion del comentario.
+        JSONResponse: Estado de la solicitud de creación del comentario
 
     Raises:
-    - NotFoundError: Si la publicacion no existe.
-    - DatabaseError: Si hay error en la base de datos.
+        NotFoundError: Si la publicación no existe
+        DatabaseError: Si hay error en la base de datos
     """
     try:
         collection = get_mongo_data("publicacion")
 
-        nuevo_comentario = comentario.model_dump()
-        nuevo_comentario["usuario_id"] = usuario.get("email", "")
-        nuevo_comentario["comentario_id"] = str(ObjectId())
-        nuevo_comentario["fecha"] = datetime.now()
+        nuevo_comentario = {
+            "comentario_id": str(ObjectId()),
+            "usuario_id": usuario.get("email", ""),
+            "comentario": datos.comentario,
+            "fecha": datetime.now(),
+        }
 
         result = collection.update_one(
             {"_id": ObjectId(publicacion_id)},

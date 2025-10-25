@@ -1,6 +1,8 @@
 """Modelo que representa una publicación."""
 
-from pydantic import BaseModel
+from typing import Optional
+
+from pydantic import BaseModel, Field
 from model.puntuacion import Puntuacion
 
 
@@ -47,3 +49,42 @@ class Publicacion(BaseModel):
 
         if errores:
             raise ValueError("; ".join(errores))
+
+
+class PublicacionCrearRequest(BaseModel):
+    """Modelo para crear una nueva publicación."""
+
+    titulo: str = Field(..., min_length=5, max_length=30)
+    """Título de la publicación"""
+
+    descripcion: str = Field(..., min_length=10, max_length=100)
+    """Descripción de la publicación"""
+
+    reto_id: str
+    """ID del reto al que pertenece la publicación"""
+
+
+class PublicacionCrearResponse(BaseModel):
+    """Modelo de respuesta para la creación de publicación."""
+
+    msg: str
+    """Mensaje de confirmación"""
+
+    publicacion_id: str
+    """ID de la publicación creada"""
+
+    video_id: str
+    """ID del video en GridFS"""
+
+    reto_id: str
+    """ID del reto"""
+
+
+class PublicacionEditarRequest(BaseModel):
+    """Modelo para editar una publicación existente."""
+
+    titulo: Optional[str] = Field(None, min_length=5, max_length=30)
+    """Nuevo título (opcional)"""
+
+    descripcion: Optional[str] = Field(None, min_length=10, max_length=100)
+    """Nueva descripción (opcional)"""

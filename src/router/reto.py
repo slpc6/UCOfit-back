@@ -1,12 +1,19 @@
 """Router para la gestión de retos"""
 
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 from fastapi.responses import JSONResponse
 from bson.objectid import ObjectId
 from gridfs import GridFS
 
-from model.reto import Reto, RetoCrear, RetoActualizar, RetoResponse
+from model.reto import (
+    Reto,
+    RetoCrear,
+    RetoActualizar,
+    RetoResponse,
+    RetoConPublicacionRequest,
+    RetoConPublicacionResponse,
+)
 from model.publicacion import Publicacion
 from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
@@ -324,25 +331,24 @@ def limpiar_retos_expirados() -> JSONResponse:
 
 @router.post("/crear-con-publicacion")
 def crear_reto_con_publicacion(
-    titulo_reto: str = Form(...),
-    descripcion_reto: str = Form(...),
-    titulo_publicacion: str = Form(...),
-    descripcion_publicacion: str = Form(...),
+    datos: RetoConPublicacionRequest,
     video: UploadFile = File(...),
     usuario: dict = Depends(datos_usuario),
-) -> JSONResponse:
-    """Crea un reto junto con su primera publicación
+) -> RetoConPublicacionResponse:
+    """Crea un reto junto con su primera publicación.
 
     Args:
-        titulo_reto: Título del reto
-        descripcion_reto: Descripción del reto
-        titulo_publicacion: Título de la publicación inicial
-        descripcion_publicacion: Descripción de la publicación inicial
+        datos: Datos del reto y publicación a crear
         video: Video de la publicación inicial
         usuario: Usuario autenticado
 
     Returns:
-        JSONResponse: Respuesta de la API
+        RetoConPublicacionResponse: Respuesta con los IDs creados
+
+    Raises:
+        BusinessLogicError: Si el usuario alcanzó el límite de retos
+        ValidationError: Si los datos no son válidos
+        DatabaseError: Si hay error en la base de datos
     """
     try:
         user_id = str(usuario["_id"])
@@ -351,8 +357,8 @@ def crear_reto_con_publicacion(
             raise BusinessLogicError("Has alcanzado el límite de 3 retos por mes")
 
         reto = Reto(
-            titulo=titulo_reto,
-            descripcion=descripcion_reto,
+            titulo=datos.titulo_reto,
+            descripcion=datos.descripcion_reto,
             creador_id=user_id,
             fecha_creacion=datetime.now(),
             fecha_expiracion=datetime.now() + timedelta(days=30),
@@ -374,8 +380,8 @@ def crear_reto_con_publicacion(
         )
 
         publicacion = Publicacion(
-            titulo=titulo_publicacion,
-            descripcion=descripcion_publicacion,
+            titulo=datos.titulo_publicacion,
+            descripcion=datos.descripcion_publicacion,
             video=str(file_id),
             usuario_id=usuario["email"],
             reto_id=reto_id,
@@ -386,16 +392,11 @@ def crear_reto_con_publicacion(
         publicacion_result = collection.insert_one(publicacion.model_dump())
         publicacion_id = str(publicacion_result.inserted_id)
 
-        return JSONResponse(
-            status_code=201,
-            content=limpiar_datos_para_json(
-                {
-                    "msg": "Reto y publicación inicial creados exitosamente",
-                    "reto_id": reto_id,
-                    "publicacion_id": publicacion_id,
-                    "video_id": str(file_id),
-                }
-            ),
+        return RetoConPublicacionResponse(
+            msg="Reto y publicación inicial creados exitosamente",
+            reto_id=reto_id,
+            publicacion_id=publicacion_id,
+            video_id=str(file_id),
         )
 
     except ValueError as e:

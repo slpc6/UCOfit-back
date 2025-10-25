@@ -1,9 +1,8 @@
 """Módulo para la gestión de los endpoints relacionados con publicaciones."""
 
 from datetime import datetime
-from typing import Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile, Form
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from gridfs import GridFS
 from bson.objectid import ObjectId
@@ -12,6 +11,11 @@ from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
 from util.path import Path
 from util.json_utils import convertir_fechas_a_string
+from model.publicacion import (
+    PublicacionCrearRequest,
+    PublicacionCrearResponse,
+    PublicacionEditarRequest,
+)
 from exceptions.custom_exceptions import (
     NotFoundError,
     AuthorizationError,
@@ -26,23 +30,19 @@ router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
 
 @router.post("/crear")
 def crear_publicacion(
-    titulo: str = Form(...),
-    descripcion: str = Form(...),
+    datos: PublicacionCrearRequest,
     video: UploadFile = File(...),
-    reto_id: str = Form(...),
     usuario: dict = Depends(datos_usuario),
-) -> JSONResponse:
+) -> PublicacionCrearResponse:
     """Crea una nueva publicación en la base de datos.
 
     Args:
-        titulo: Título de la publicación
-        descripcion: Descripción de la publicación
+        datos: Datos de la publicación a crear
         video: Archivo de video enviado como multipart/form-data
-        reto_id: ID del reto al que pertenece la publicación
         usuario: Datos del usuario autenticado
 
     Returns:
-        JSONResponse: Respuesta de la API con el ID de la publicación creada
+        PublicacionCrearResponse: Respuesta con el ID de la publicación creada
 
     Raises:
         NotFoundError: Si el reto no existe
@@ -52,7 +52,7 @@ def crear_publicacion(
     """
     try:
         retos_collection = get_mongo_data("retos")
-        reto = retos_collection.find_one({"_id": ObjectId(reto_id)})
+        reto = retos_collection.find_one({"_id": ObjectId(datos.reto_id)})
 
         if not reto:
             raise NotFoundError("Reto")
@@ -71,24 +71,21 @@ def crear_publicacion(
         )
 
         publicacion_doc = {
-            "titulo": titulo,
-            "descripcion": descripcion,
+            "titulo": datos.titulo,
+            "descripcion": datos.descripcion,
             "video": str(file_id),
             "usuario_id": usuario["email"],
-            "reto_id": reto_id,
+            "reto_id": datos.reto_id,
         }
 
         result = collection.insert_one(publicacion_doc)
         publicacion_id = str(result.inserted_id)
 
-        return JSONResponse(
-            content={
-                "msg": "Publicación creada con éxito",
-                "publicacion_id": publicacion_id,
-                "video_id": str(file_id),
-                "reto_id": reto_id,
-            },
-            status_code=201,
+        return PublicacionCrearResponse(
+            msg="Publicación creada con éxito",
+            publicacion_id=publicacion_id,
+            video_id=str(file_id),
+            reto_id=datos.reto_id,
         )
 
     except (NotFoundError, BusinessLogicError, FileError):
@@ -274,16 +271,14 @@ def obtener_publicacion(publicacion_id: str) -> JSONResponse:
 @router.put("/editar/{publicacion_id}")
 def editar_publicacion(
     publicacion_id: str,
-    titulo: Optional[str] = None,
-    descripcion: Optional[str] = None,
+    datos: PublicacionEditarRequest,
     usuario: dict = Depends(datos_usuario),
 ) -> JSONResponse:
     """Actualiza una publicación existente.
 
     Args:
         publicacion_id: ID de la publicación a editar
-        titulo: Nuevo título (opcional)
-        descripcion: Nueva descripción (opcional)
+        datos: Datos a actualizar en la publicación
         usuario: Datos del usuario autenticado
 
     Returns:
@@ -306,10 +301,10 @@ def editar_publicacion(
             raise AuthorizationError("No tienes permiso para editar esta publicación")
 
         update_data = {}
-        if titulo is not None:
-            update_data["titulo"] = titulo
-        if descripcion is not None:
-            update_data["descripcion"] = descripcion
+        if datos.titulo is not None:
+            update_data["titulo"] = datos.titulo
+        if datos.descripcion is not None:
+            update_data["descripcion"] = datos.descripcion
 
         if not update_data:
             raise ValidationError("No se proporcionaron datos para actualizar")

@@ -48,10 +48,7 @@ class Usuario(BaseModel):
         if not isinstance(self.nombre.strip(), str) or not 1 <= len(self.nombre) <= 50:
             errores.append("El nombre debe tener entre 1 y 50 caracteres.")
 
-        if (
-            not isinstance(self.apellido.strip(), str)
-            or not 1 <= len(self.apellido) <= 50
-        ):
+        if not isinstance(self.apellido.strip(), str) or not 1 <= len(self.apellido) <= 50:
             errores.append("El apellido debe tener entre 1 y 50 caracteres.")
 
         if not isinstance(self.email, str) or not re.match(pattern, self.email):
@@ -74,16 +71,11 @@ class Usuario(BaseModel):
                 )
 
         if self.ciudad is not None:
-            if (
-                not isinstance(self.ciudad.strip(), str)
-                or not 3 <= len(self.ciudad.strip()) <= 15
-            ):
+            if not isinstance(self.ciudad.strip(), str) or not 3 <= len(self.ciudad.strip()) <= 15:
                 errores.append("La ciudad debe tener entre 3 y 15 caracteres.")
 
         if self.telefono is not None:
-            if not isinstance(self.telefono, str) or not re.match(
-                r"^\d{7,10}$", self.telefono
-            ):
+            if not isinstance(self.telefono, str) or not re.match(r"^\d{7,10}$", self.telefono):
                 errores.append(
                     "El teléfono debe contener entre 7 y 10 dígitos numéricos únicamente."
                 )
@@ -93,13 +85,28 @@ class Usuario(BaseModel):
 
 
 class UsuarioActualizar(BaseModel):
-    """Clase que representa los datos que seran actualizados para un usuario existente."""
+    """Clase que representa los datos que serán actualizados para un usuario existente."""
 
     nombre: Optional[str] = Field(None, min_length=2, max_length=50)
+    """Nombre del usuario (opcional)"""
+
     apellido: Optional[str] = Field(None, min_length=2, max_length=50)
+    """Apellido del usuario (opcional)"""
+
     email: Optional[EmailStr] = None
+    """Correo electrónico del usuario (opcional)"""
+
     password: Optional[str] = Field(None, min_length=6)
+    """Contraseña del usuario (opcional)"""
+
     descripcion: Optional[str] = Field(None, max_length=255)
+    """Descripción del usuario (opcional)"""
+
     foto_perfil: Optional[str] = None
+    """Foto de perfil del usuario en base64 (opcional)"""
+
     ciudad: Optional[str] = Field(None, min_length=3, max_length=15)
+    """Ciudad del usuario (opcional)"""
+
     telefono: Optional[str] = Field(None, pattern=r"^\d{7,10}$")
+    """Teléfono del usuario (opcional)"""

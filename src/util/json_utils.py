@@ -7,13 +7,13 @@ from bson.objectid import ObjectId
 
 def convertir_fechas_a_string(doc: Dict | List) -> Dict | List:
     """Convierte todas las fechas datetime a string en un documento
-    
+
     Args:
         doc: diccionario o lista a convertir
 
     Returns:
         diccionario o lista con fechas convertidas a string
-    
+
     """
     if isinstance(doc, dict):
         for key, value in doc.items():
@@ -32,13 +32,13 @@ def convertir_fechas_a_string(doc: Dict | List) -> Dict | List:
 
 def convertir_objectid_a_string(doc: Dict | List) -> Dict | List:
     """Convierte todos los ObjectId a string en un documento
-    
+
     Args:
         doc: diccionario o lista a convertir
 
     Returns:
         diccionario o lista con ObjectIds convertidos a string
-    
+
     """
 
     if isinstance(doc, dict):
@@ -58,15 +58,15 @@ def convertir_objectid_a_string(doc: Dict | List) -> Dict | List:
 
 def limpiar_datos_para_json(doc: Dict | List) -> Dict | List:
     """Limpia un documento para serialización JSON
-    
+
     Convierte datetime a string y ObjectId a string
-    
+
     Args:
         doc: diccionario o lista a limpiar
 
     Returns:
         diccionario o lista limpio para JSON
-    
+
     """
     doc = convertir_fechas_a_string(doc)
     doc = convertir_objectid_a_string(doc)

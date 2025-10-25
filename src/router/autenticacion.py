@@ -1,20 +1,22 @@
-"""Modulo para la gestion de usuarios"""
+"""Módulo para la gestión de autenticación de usuarios."""
 
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from dotenv import load_dotenv
 import jwt
-import os
-
 
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 
-
 from model.autenticacion import Token
 from util.load_data import get_auth, get_mongo_data, get_secrets
+from exceptions.custom_exceptions import (
+    AuthenticationError,
+    NotFoundError,
+    TokenError,
+    DatabaseError,
+)
 
 router = APIRouter(prefix="/usuario", tags=["usuario"])
 OA2 = get_auth()
@@ -23,62 +25,59 @@ SECRET_KEY, ALGORITHM = get_secrets()
 
 
 @router.post(path="/login")
-def login(usuario: OAuth2PasswordRequestForm = Depends()) -> JSONResponse:
-    """Metodo para iniciar sesion
-    :args:
-    - UsuarioLogin: Datos del usuario que se esta iniciando sesion
+def login(usuario: OAuth2PasswordRequestForm = Depends()) -> Token:
+    """Método para iniciar sesión.
 
-    :returns:
-    - JSONResponse: Respuesta de la API
+    Args:
+        usuario: Datos del usuario que se está iniciando sesión
 
+    Returns:
+        Token: Token de acceso JWT
+
+    Raises:
+        NotFoundError: Si el usuario no existe
+        AuthenticationError: Si la contraseña es incorrecta
+        TokenError: Si hay error generando el token
+        DatabaseError: Si hay error accediendo a la base de datos
     """
     try:
-
         db_user = DATA.find_one({"email": str(usuario.username)})
 
         if not db_user:
-            return JSONResponse(
-                status_code=404, content={"msg": "Usuario no encontrado"}
-            )
-        if not bcrypt.checkpw(
-            str(usuario.password).encode("utf-8"), db_user["password"]
-        ):
-            return JSONResponse(
-                status_code=400, content={"msg": "Contraseña incorrecta"}
-            )
+            raise NotFoundError("Usuario")
+
+        if not bcrypt.checkpw(str(usuario.password).encode("utf-8"), db_user["password"]):
+            raise AuthenticationError("Contraseña incorrecta")
 
         expire = datetime.now(timezone.utc) + timedelta(hours=2)
         payload = {"sub": str(db_user["_id"]), "email": db_user["email"], "exp": expire}
         token = jwt.encode(payload, SECRET_KEY, ALGORITHM)
         return Token(access_token=token)
 
+    except (NotFoundError, AuthenticationError, TokenError):
+        raise
     except Exception as e:
-        return JSONResponse(
-            status_code=500, content={"msg": f"Error al iniciar sesion: {e}"}
-        )
+        raise DatabaseError(f"Error al iniciar sesión: {str(e)}") from e
 
 
 @router.post("/logout")
-def loguot(token: str = Depends(OA2)) -> Token:
-    """Metodo para cerrar la sesion del usuario
-    :args:
-    - token: Token de la secion del usuario
+def logout(_: str = Depends(OA2)) -> JSONResponse:
+    """Método para cerrar la sesión del usuario.
 
-    :returns:
-    - JSONResponse: Respuesta de la API
+    Args:
+        token: Token de la sesión del usuario
 
+    Returns:
+        JSONResponse: Respuesta de la API confirmando el logout
+
+    Raises:
+        DatabaseError: Si hay error al procesar el logout
     """
     try:
-        load_dotenv()
-        os.environ["TOKEN_SECRET"] = ""
-
-        return JSONResponse(
-            status_code=200,
-            content={"msg": "Sesion cerrada correctamente"}
-        )
+        # TODO
+        # En un sistema real, aquí se invalidaría el token en una blacklist
+        # Por ahora solo retornamos éxito
+        return JSONResponse(status_code=200, content={"msg": "Sesión cerrada correctamente"})
 
     except Exception as e:
-        JSONResponse(
-            status_code=500,
-            content={"msg": f"Error al obtener usuarios conectados: {e}"},
-        )
+        raise DatabaseError(f"Error al cerrar sesión: {str(e)}") from e

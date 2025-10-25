@@ -8,7 +8,7 @@ router = APIRouter(prefix="/healthz")
 
 @router.get(path="/")
 def healthz() -> JSONResponse:
-    """Endpoint para verificar el estado del servicio
+    """Endpoint para verificar el estado del servicio en Render.
     Return:
     - Un JSONResponse con un mensaje de OK si el servicio funciona
     correctamente.

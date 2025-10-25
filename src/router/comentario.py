@@ -9,6 +9,8 @@ from fastapi import APIRouter
 from model.comentario import Comentario
 from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
+from exceptions.custom_exceptions import DatabaseError, NotFoundError
+
 
 router = APIRouter(prefix="/comentario", tags=["comentario"])
 
@@ -25,6 +27,10 @@ def crear_comentario(
 
     Returns:
     - Jsonresponse con el estado de la solicitud de creacion del comentario.
+
+    Raises:
+    - NotFoundError: Si la publicacion no existe.
+    - DatabaseError: Si hay error en la base de datos.
     """
     try:
         collection = get_mongo_data("publicacion")
@@ -40,12 +46,9 @@ def crear_comentario(
         )
 
         if result.matched_count == 0:
-            return JSONResponse(
-                status_code=404, content={"msg": "Publicación no encontrada"}
-            )
+            raise NotFoundError("Publicación")
 
         return JSONResponse(status_code=201, content={"msg": "Comentario enviado."})
+
     except Exception as e:
-        return JSONResponse(
-            status_code=500, content={"msg": f"Error al enviar el comentario: {e}"}
-        )
+        raise DatabaseError(f"Error al enviar el comentario: {str(e)}") from e

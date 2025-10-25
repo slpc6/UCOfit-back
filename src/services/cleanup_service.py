@@ -8,6 +8,7 @@ import schedule
 
 from bson.objectid import ObjectId
 from util.load_data import get_mongo_data
+from exceptions.custom_exceptions import DatabaseError
 
 
 class RetoCleanupService:
@@ -20,16 +21,15 @@ class RetoCleanupService:
 
     async def cleanup_expired_challenges(self) -> Dict[str, Any]:
         """Limpia los retos expirados y sus publicaciones
-        
+
         Returns:
             Dict con estadísticas de la limpieza
         """
         try:
 
-            retos_expirados = self.retos_collection.find({
-                "fecha_expiracion": {"$lt": datetime.now()},
-                "activo": True
-            })
+            retos_expirados = self.retos_collection.find(
+                {"fecha_expiracion": {"$lt": datetime.now()}, "activo": True}
+            )
 
             publicaciones_eliminadas = 0
             retos_marcados_inactivos = 0
@@ -39,30 +39,23 @@ class RetoCleanupService:
                 publicaciones_ids = reto.get("publicaciones", [])
                 if publicaciones_ids:
 
-                    result = self.publicaciones_collection.delete_many({
-                        "_id": {"$in": [ObjectId(pid) for pid in publicaciones_ids]}
-                    })
+                    result = self.publicaciones_collection.delete_many(
+                        {"_id": {"$in": [ObjectId(pid) for pid in publicaciones_ids]}}
+                    )
                     publicaciones_eliminadas += result.deleted_count
 
-                self.retos_collection.update_one(
-                    {"_id": reto["_id"]},
-                    {"$set": {"activo": False}}
-                )
+                self.retos_collection.update_one({"_id": reto["_id"]}, {"$set": {"activo": False}})
                 retos_marcados_inactivos += 1
 
             return {
                 "success": True,
                 "retos_marcados_inactivos": retos_marcados_inactivos,
                 "publicaciones_eliminadas": publicaciones_eliminadas,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
+            raise DatabaseError(f"Error al limpiar los retos expirados: {str(e)}") from e
 
     def schedule_cleanup(self):
         """Programa la limpieza automática"""
@@ -71,9 +64,7 @@ class RetoCleanupService:
             lambda: asyncio.create_task(self.cleanup_expired_challenges())
         )
 
-        schedule.every(6).hours.do(
-            lambda: asyncio.create_task(self.cleanup_expired_challenges())
-        )
+        schedule.every(6).hours.do(lambda: asyncio.create_task(self.cleanup_expired_challenges()))
 
     async def start_scheduler(self):
         """Inicia el programador de tareas"""
@@ -96,6 +87,7 @@ class RetoCleanupService:
         schedule.clear()
         print("⏹️ Servicio de limpieza de retos detenido")
 
+
 cleanup_service = RetoCleanupService()
 
 
@@ -106,7 +98,6 @@ async def run_cleanup_service():
 
 def start_cleanup_service():
     """Inicia el servicio de limpieza en un hilo separado"""
-
 
     def run_async():
         loop = asyncio.new_event_loop()

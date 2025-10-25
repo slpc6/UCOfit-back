@@ -9,6 +9,8 @@ from fastapi import APIRouter
 from model.puntuacion import Puntuacion
 from router.usuario import datos_usuario
 from util.load_data import get_mongo_data
+from exceptions.custom_exceptions import NotFoundError, BusinessLogicError, DatabaseError
+
 
 router = APIRouter(prefix="/puntuacion", tags=["puntuacion"])
 
@@ -31,22 +33,16 @@ def puntuar_publicacion(
         collection = get_mongo_data("publicacion")
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
-            return JSONResponse(
-                status_code=404, content={"msg": "Publicación no encontrada"}
-            )
+            raise NotFoundError("Publicación")
 
         usuario_id = usuario.get("email", "")
         puntuaciones_existentes = publicacion.get("puntuaciones", [])
         for p in puntuaciones_existentes:
             if p.get("usuario_id") == usuario_id:
-                return JSONResponse(
-                    status_code=400, content={"msg": "Ya has puntuado esta publicación"}
-                )
+                raise BusinessLogicError("Ya has puntuado esta publicación")
 
         if not 1 <= puntuacion.puntuacion <= 5:
-            return JSONResponse(
-                status_code=400, content={"msg": "La puntuación debe estar entre 1 y 5"}
-            )
+            raise BusinessLogicError("La puntuación debe estar entre 1 y 5")
 
         nueva_puntuacion = {
             "usuario_id": usuario_id,
@@ -66,19 +62,10 @@ def puntuar_publicacion(
             {"$set": {"puntuacion_promedio": round(promedio, 2)}},
         )
 
-        return JSONResponse(
-            status_code=201,
-            content={
-                "msg": "Puntuación registrada correctamente",
-                "promedio": round(promedio, 2),
-                "total_puntuaciones": len(puntuaciones_actualizadas),
-            },
-        )
+        return JSONResponse(status_code=201, content={"msg": "Puntuación registrada correctamente"})
 
     except Exception as e:
-        return JSONResponse(
-            status_code=500, content={"msg": f"Error al puntuar la publicación: {e}"}
-        )
+        raise DatabaseError(f"Error al puntuar la publicación: {str(e)}") from e
 
 
 @router.get("/promedio/{publicacion_id}")
@@ -95,9 +82,7 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
         collection = get_mongo_data("publicacion")
         publicacion = collection.find_one({"_id": ObjectId(publicacion_id)})
         if not publicacion:
-            return JSONResponse(
-                status_code=404, content={"msg": "Publicación no encontrada"}
-            )
+            raise NotFoundError("Publicación")
 
         puntuaciones = publicacion.get("puntuaciones", [])
 
@@ -125,6 +110,4 @@ def obtener_promedio_puntuacion(publicacion_id: str) -> JSONResponse:
         )
 
     except Exception as e:
-        return JSONResponse(
-            status_code=500, content={"msg": f"Error al obtener puntuaciones: {e}"}
-        )
+        raise DatabaseError(f"Error al obtener puntuaciones: {str(e)}") from e

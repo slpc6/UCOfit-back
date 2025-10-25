@@ -1,34 +1,35 @@
-"""Modelo que representa una publicacion"""
+"""Modelo que representa una publicación."""
 
 from pydantic import BaseModel
 from model.puntuacion import Puntuacion
 
+
 class Publicacion(BaseModel):
-    """Modelo que representa una publicacion"""
+    """Modelo que representa una publicación."""
 
     titulo: str
-    """Titulo de la publicacion"""
+    """Título de la publicación"""
 
     descripcion: str
-    """Descripcion de la publicacion"""
+    """Descripción de la publicación"""
 
     video: str
-    """Video de la publicacion"""
+    """ID del video de la publicación en GridFS"""
 
     usuario_id: str
-    """ID del usuario que publico la publicacion"""
+    """ID del usuario que publicó la publicación"""
 
     reto_id: str
-    """ID del reto al que pertenece la publicacion"""
+    """ID del reto al que pertenece la publicación"""
 
     puntuaciones: list[Puntuacion]
-    """Puntuaciones de la publicacion"""
+    """Lista de puntuaciones de la publicación"""
 
     puntuacion_promedio: float
-    """Puntuacion promedio de la publicacion"""
+    """Puntuación promedio de la publicación"""
 
-    def validar_publicacion(self):
-        """Valida las reglas de negocio para una publicacion
+    def validar_publicacion(self) -> None:
+        """Valida las reglas de negocio para una publicación.
 
         Raises:
             ValueError: Si existe alguna violación de las reglas de negocio.
@@ -36,16 +37,13 @@ class Publicacion(BaseModel):
         errores: list[str] = []
 
         if not isinstance(self.titulo, str) or not 5 <= len(self.titulo) <= 30:
-            errores.append("El titulo debe tener entre 5 y 30 caracteres.")
+            errores.append("El título debe tener entre 5 y 30 caracteres.")
 
-        if (
-            not isinstance(self.descripcion, str)
-            or not 10 <= len(self.descripcion) <= 100
-        ):
-            errores.append("La descripcion debe tener entre 10 y 100 caracteres.")
+        if not isinstance(self.descripcion, str) or not 10 <= len(self.descripcion) <= 100:
+            errores.append("La descripción debe tener entre 10 y 100 caracteres.")
 
         if not self.reto_id:
-            errores.append("La publicacion debe pertenecer a un reto.")
+            errores.append("La publicación debe pertenecer a un reto.")
 
         if errores:
             raise ValueError("; ".join(errores))

@@ -37,32 +37,63 @@ def puntuar_publicacion(
 
         usuario_id = usuario.get("email", "")
         puntuaciones_existentes = publicacion.get("puntuaciones", [])
-        for p in puntuaciones_existentes:
-            if p.get("usuario_id") == usuario_id:
-                raise BusinessLogicError("Ya has puntuado esta publicación")
 
         if not 1 <= puntuacion.puntuacion <= 5:
             raise BusinessLogicError("La puntuación debe estar entre 1 y 5")
 
-        nueva_puntuacion = {
-            "usuario_id": usuario_id,
-            "puntuacion": puntuacion.puntuacion,
-            "fecha": datetime.now(),
-        }
+        # Verificar si el usuario ya puntuó
+        ya_puntuado = False
+        for i, p in enumerate(puntuaciones_existentes):
+            if p.get("usuario_id") == usuario_id:
+                # Si ya puntuó, reemplazar su puntuación anterior
+                puntuaciones_existentes[i] = {
+                    "usuario_id": usuario_id,
+                    "puntuacion": puntuacion.puntuacion,
+                    "fecha": datetime.now(),
+                }
+                ya_puntuado = True
+                break
+
+        if not ya_puntuado:
+
+            nueva_puntuacion = {
+                "usuario_id": usuario_id,
+                "puntuacion": puntuacion.puntuacion,
+                "fecha": datetime.now(),
+            }
+            puntuaciones_existentes.append(nueva_puntuacion)
+
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
-            {"$push": {"puntuaciones": nueva_puntuacion}},
+            {"$set": {"puntuaciones": puntuaciones_existentes}},
         )
-        puntuaciones_actualizadas = puntuaciones_existentes + [nueva_puntuacion]
-        promedio = sum(p["puntuacion"] for p in puntuaciones_actualizadas) / len(
-            puntuaciones_actualizadas
+
+        promedio = sum(p["puntuacion"] for p in puntuaciones_existentes) / len(
+            puntuaciones_existentes
         )
         collection.update_one(
             {"_id": ObjectId(publicacion_id)},
             {"$set": {"puntuacion_promedio": round(promedio, 2)}},
         )
 
-        return JSONResponse(status_code=201, content={"msg": "Puntuación registrada correctamente"})
+        mensaje = "Puntuación actualizada correctamente" if ya_puntuado else "Puntuación registrada correctamente"
+
+        puntuaciones_formateadas = []
+        for p in puntuaciones_existentes:
+            p_formateada = p.copy()
+            if isinstance(p_formateada.get("fecha"), datetime):
+                p_formateada["fecha"] = p_formateada["fecha"].isoformat()
+            puntuaciones_formateadas.append(p_formateada)
+
+        return JSONResponse(
+            status_code=201,
+            content={
+                "msg": mensaje,
+                "promedio": round(promedio, 2),
+                "total_puntuaciones": len(puntuaciones_existentes),
+                "puntuaciones": puntuaciones_formateadas
+            }
+        )
 
     except Exception as e:
         raise DatabaseError(f"Error al puntuar la publicación: {str(e)}") from e

@@ -1,7 +1,7 @@
 """Router para la gestión de retos"""
 
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from bson.objectid import ObjectId
 from gridfs import GridFS
@@ -103,7 +103,14 @@ def listar_retos(activos: bool = True, limit: int = 20, offset: int = 0) -> JSON
 
         retos_list = []
         for reto in retos:
-            retos_list.append(RetoResponse.from_reto(reto).model_dump())
+            reto_dict = RetoResponse.from_reto(reto).model_dump()
+            creador_id = reto.get("creador_id", "")
+            if creador_id:
+                usuario = USUARIOS_COLLECTION.find_one({"_id": ObjectId(creador_id)})
+                if usuario and "email" in usuario:
+                    reto_dict["creador_id"] = usuario["email"]
+
+            retos_list.append(reto_dict)
 
         return JSONResponse(
             status_code=200,
@@ -331,14 +338,20 @@ def limpiar_retos_expirados() -> JSONResponse:
 
 @router.post("/crear-con-publicacion")
 def crear_reto_con_publicacion(
-    datos: RetoConPublicacionRequest,
+    titulo_reto: str = Form(...),
+    descripcion_reto: str = Form(...),
+    titulo_publicacion: str = Form(...),
+    descripcion_publicacion: str = Form(...),
     video: UploadFile = File(...),
     usuario: dict = Depends(datos_usuario),
 ) -> RetoConPublicacionResponse:
     """Crea un reto junto con su primera publicación.
 
     Args:
-        datos: Datos del reto y publicación a crear
+        titulo_reto: Título del reto
+        descripcion_reto: Descripción del reto
+        titulo_publicacion: Título de la publicación inicial
+        descripcion_publicacion: Descripción de la publicación inicial
         video: Video de la publicación inicial
         usuario: Usuario autenticado
 
@@ -352,21 +365,20 @@ def crear_reto_con_publicacion(
     """
     try:
         user_id = str(usuario["_id"])
-
         if not check_user_challenge_limit(user_id):
             raise BusinessLogicError("Has alcanzado el límite de 3 retos por mes")
 
         reto = Reto(
-            titulo=datos.titulo_reto,
-            descripcion=datos.descripcion_reto,
+            titulo=titulo_reto,
+            descripcion=descripcion_reto,
             creador_id=user_id,
-            fecha_creacion=datetime.now(),
             fecha_expiracion=datetime.now() + timedelta(days=30),
         )
 
         reto.validar_reto()
 
         reto_dict = reto.model_dump()
+        reto_dict["fecha_expiracion"] = reto.fecha_expiracion
         reto_result = RETOS_COLLECTION.insert_one(reto_dict)
         reto_id = str(reto_result.inserted_id)
 
@@ -380,8 +392,8 @@ def crear_reto_con_publicacion(
         )
 
         publicacion = Publicacion(
-            titulo=datos.titulo_publicacion,
-            descripcion=datos.descripcion_publicacion,
+            titulo=titulo_publicacion,
+            descripcion=descripcion_publicacion,
             video=str(file_id),
             usuario_id=usuario["email"],
             reto_id=reto_id,

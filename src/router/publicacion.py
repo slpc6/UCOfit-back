@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 from gridfs import GridFS
 from bson.objectid import ObjectId
@@ -12,7 +12,6 @@ from util.load_data import get_mongo_data
 from util.path import Path
 from util.json_utils import convertir_fechas_a_string
 from model.publicacion import (
-    PublicacionCrearRequest,
     PublicacionCrearResponse,
     PublicacionEditarRequest,
 )
@@ -30,14 +29,18 @@ router = APIRouter(prefix="/publicacion", tags=["Publicacion"])
 
 @router.post("/crear")
 def crear_publicacion(
-    datos: PublicacionCrearRequest,
+    titulo: str = Form(...),
+    descripcion: str = Form(...),
+    reto_id: str = Form(None),
     video: UploadFile = File(...),
     usuario: dict = Depends(datos_usuario),
 ) -> PublicacionCrearResponse:
     """Crea una nueva publicación en la base de datos.
 
     Args:
-        datos: Datos de la publicación a crear
+        titulo: Título de la publicación
+        descripcion: Descripción de la publicación
+        reto_id: ID del reto
         video: Archivo de video enviado como multipart/form-data
         usuario: Datos del usuario autenticado
 
@@ -51,14 +54,22 @@ def crear_publicacion(
         DatabaseError: Si hay error en la base de datos
     """
     try:
-        retos_collection = get_mongo_data("retos")
-        reto = retos_collection.find_one({"_id": ObjectId(datos.reto_id)})
 
-        if not reto:
-            raise NotFoundError("Reto")
+        if not 5 <= len(titulo) <= 30:
+            raise ValidationError("El título debe tener entre 5 y 30 caracteres.")
 
-        if datetime.now() > reto["fecha_expiracion"]:
-            raise BusinessLogicError("El reto ha expirado")
+        if not 10 <= len(descripcion) <= 100:
+            raise ValidationError("La descripción debe tener entre 10 y 100 caracteres.")
+
+        if reto_id:
+            retos_collection = get_mongo_data("retos")
+            reto = retos_collection.find_one({"_id": ObjectId(reto_id)})
+
+            if not reto:
+                raise NotFoundError("Reto")
+
+            if datetime.now() > reto["fecha_expiracion"]:
+                raise BusinessLogicError("El reto ha expirado")
 
         collection = get_mongo_data("publicacion")
         db = collection.database
@@ -71,12 +82,14 @@ def crear_publicacion(
         )
 
         publicacion_doc = {
-            "titulo": datos.titulo,
-            "descripcion": datos.descripcion,
+            "titulo": titulo,
+            "descripcion": descripcion,
             "video": str(file_id),
             "usuario_id": usuario["email"],
-            "reto_id": datos.reto_id,
         }
+
+        if reto_id:
+            publicacion_doc["reto_id"] = reto_id
 
         result = collection.insert_one(publicacion_doc)
         publicacion_id = str(result.inserted_id)
@@ -85,10 +98,10 @@ def crear_publicacion(
             msg="Publicación creada con éxito",
             publicacion_id=publicacion_id,
             video_id=str(file_id),
-            reto_id=datos.reto_id,
+            reto_id=reto_id or "",
         )
 
-    except (NotFoundError, BusinessLogicError, FileError):
+    except (ValidationError, NotFoundError, BusinessLogicError, FileError):
         raise
     except Exception as e:
         raise DatabaseError(f"Error al crear la publicación: {str(e)}") from e

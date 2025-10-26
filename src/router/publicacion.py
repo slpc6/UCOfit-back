@@ -86,6 +86,8 @@ def crear_publicacion(
             "descripcion": descripcion,
             "video": str(file_id),
             "usuario_id": usuario["email"],
+            "puntuaciones": [],
+            "puntuacion_promedio": 0,
         }
 
         if reto_id:

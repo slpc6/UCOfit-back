@@ -19,6 +19,7 @@ from exceptions.custom_exceptions import DatabaseError, EmailError
 
 router = APIRouter(prefix="/password-recovery", tags=["password-recovery"])
 DATA = get_mongo_data()
+DATA_TOKEN = get_mongo_data('recovery_tokens')
 SECRET_KEY, ALGORITHM = get_secrets()
 RECOVERY_TOKENS = "recovery_tokens"
 FRONTEND_URL = os.getenv("FRONTEND_URL")
@@ -55,16 +56,15 @@ async def request_password_recovery(request: PasswordRecoveryRequest) -> JSONRes
             "expires_at": expires_at,
             "used": False,
             "created_at": datetime.now(timezone.utc),
-        }
-
-        DATA.insert_one(token_data)
+        } 
+        DATA_TOKEN.insert_one(token_data)
 
         email_sent = await email_service.send_password_recovery_email(
             email=request.email, token=token, frontend_url=FRONTEND_URL
         )
 
         if not email_sent:
-            DATA.delete_one({"token": token})
+            DATA_TOKEN.delete_one({"token": token})
             raise EmailError("Error al enviar el email de recuperación.")
 
         return JSONResponse(
@@ -89,7 +89,7 @@ def validate_token(token: str) -> TokenValidationResponse:
     """
     try:
 
-        token_data = DATA.find_one({"token": token})
+        token_data = DATA_TOKEN.find_one({"token": token})
 
         if not token_data:
             return TokenValidationResponse(valid=False, msg="Token no encontrado")
@@ -130,7 +130,7 @@ async def reset_password(request: PasswordResetRequest) -> JSONResponse:
         if not token_validation.valid:
             return JSONResponse(status_code=400, content={"msg": token_validation.msg})
 
-        token_data = DATA.find_one({"token": request.token})
+        token_data = DATA_TOKEN.find_one({"token": request.token})
         if not token_data:
             return JSONResponse(status_code=400, content={"msg": "Token no encontrado"})
 
@@ -147,7 +147,7 @@ async def reset_password(request: PasswordResetRequest) -> JSONResponse:
 
         DATA.update_one({"email": token_data["email"]}, {"$set": {"password": hashed_password}})
 
-        DATA.update_one(
+        DATA_TOKEN.update_one(
             {"token": request.token},
             {"$set": {"used": True, "used_at": datetime.now(timezone.utc)}},
         )

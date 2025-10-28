@@ -12,22 +12,48 @@ load_dotenv()
 
 
 class EmailService:
-    """Servicio para el envío de emails."""
+    """Servicio para el envío de emails con soporte para Gmail y SendGrid."""
 
     def __init__(self):
-        """Inicializa el servicio de email con configuración de Gmail."""
-        self.config = ConnectionConfig(
-            MAIL_USERNAME=os.getenv("GMAIL_USERNAME"),
-            MAIL_PASSWORD=os.getenv("GMAIL_APP_PASSWORD"),
-            MAIL_FROM=os.getenv("GMAIL_USERNAME"),
-            MAIL_PORT=465,
-            MAIL_SERVER="smtp.gmail.com",
-            MAIL_STARTTLS=False,
-            MAIL_SSL_TLS=True,
-            USE_CREDENTIALS=True,
-            VALIDATE_CERTS=True,
-            TIMEOUT=60,
-        )
+        """Inicializa el servicio de email con configuración desde variables de entorno."""
+        # Configuración del proveedor de email
+        mail_provider = os.getenv("MAIL_PROVIDER", "sendgrid").lower()
+
+        if mail_provider == "gmail":
+            # Configuración para Gmail
+            username = os.getenv("GMAIL_USERNAME")
+            password = os.getenv("GMAIL_APP_PASSWORD")
+
+            self.config = ConnectionConfig(
+                MAIL_USERNAME=username,
+                MAIL_PASSWORD=password,
+                MAIL_FROM=username,
+                MAIL_PORT=465,
+                MAIL_SERVER="smtp.gmail.com",
+                MAIL_STARTTLS=False,
+                MAIL_SSL_TLS=True,
+                USE_CREDENTIALS=True,
+                VALIDATE_CERTS=True,
+                TIMEOUT=60,
+            )
+        else:
+            # Configuración para SendGrid (por defecto)
+            sendgrid_username = os.getenv("SENDGRID_USERNAME", "apikey")
+            sendgrid_password = os.getenv("SENDGRID_API_KEY")
+            sendgrid_from = os.getenv("SENDGRID_FROM_EMAIL")
+            
+            self.config = ConnectionConfig(
+                MAIL_USERNAME=sendgrid_username,
+                MAIL_PASSWORD=sendgrid_password,
+                MAIL_FROM=sendgrid_from,
+                MAIL_PORT=587,
+                MAIL_SERVER="smtp.sendgrid.net",
+                MAIL_STARTTLS=True,
+                MAIL_SSL_TLS=False,
+                USE_CREDENTIALS=True,
+                VALIDATE_CERTS=True,
+                TIMEOUT=60,
+            )
 
         self.template_env = Environment(loader=FileSystemLoader("src/templates"))
 

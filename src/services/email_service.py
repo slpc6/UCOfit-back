@@ -20,12 +20,13 @@ class EmailService:
             MAIL_USERNAME=os.getenv("GMAIL_USERNAME"),
             MAIL_PASSWORD=os.getenv("GMAIL_APP_PASSWORD"),
             MAIL_FROM=os.getenv("GMAIL_USERNAME"),
-            MAIL_PORT=587,
+            MAIL_PORT=465,
             MAIL_SERVER="smtp.gmail.com",
-            MAIL_STARTTLS=True,
-            MAIL_SSL_TLS=False,
+            MAIL_STARTTLS=False,
+            MAIL_SSL_TLS=True,
             USE_CREDENTIALS=True,
             VALIDATE_CERTS=True,
+            TIMEOUT=60,
         )
 
         self.template_env = Environment(loader=FileSystemLoader("src/templates"))

@@ -1,6 +1,7 @@
 """Servicio de email para recuperación de contraseña."""
 
 import os
+import asyncio
 
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from jinja2 import Environment, FileSystemLoader
@@ -42,22 +43,26 @@ class EmailService:
             sendgrid_password = os.getenv("SENDGRID_API_KEY")
             sendgrid_from = os.getenv("SENDGRID_FROM_EMAIL")
             
+            # Usar puerto alternativo 2525 que suele ser más confiable desde cloud
+            mail_port = int(os.getenv("SENDGRID_PORT", "2525"))
+            
             self.config = ConnectionConfig(
                 MAIL_USERNAME=sendgrid_username,
                 MAIL_PASSWORD=sendgrid_password,
                 MAIL_FROM=sendgrid_from,
-                MAIL_PORT=587,
+                MAIL_PORT=mail_port,
                 MAIL_SERVER="smtp.sendgrid.net",
-                MAIL_STARTTLS=True,
-                MAIL_SSL_TLS=False,
+                MAIL_STARTTLS=mail_port == 587,
+                MAIL_SSL_TLS=mail_port == 465,
                 USE_CREDENTIALS=True,
                 VALIDATE_CERTS=True,
-                TIMEOUT=60,
+                TIMEOUT=120,  # Aumentar timeout a 120 segundos
             )
 
         self.template_env = Environment(loader=FileSystemLoader("src/templates"))
 
         self.fastmail = FastMail(self.config)
+
 
     async def send_password_recovery_email(self, email: str, token: str, frontend_url: str) -> bool:
         """Envía email de recuperación de contraseña.
@@ -73,25 +78,38 @@ class EmailService:
         Raises:
             EmailError: Si hay error enviando el email
         """
-        try:
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                recovery_link = f"{frontend_url}/resetar-contrasena?token={token}"
 
-            recovery_link = f"{frontend_url}/resetar-contrasena?token={token}"
+                template = self.template_env.get_template("password_recovery.html")
+                html_content = template.render(recovery_link=recovery_link, user_email=email)
 
-            template = self.template_env.get_template("password_recovery.html")
-            html_content = template.render(recovery_link=recovery_link, user_email=email)
+                message = MessageSchema(
+                    subject="Recuperación de Contraseña - UCOfit",
+                    recipients=[email],
+                    body=html_content,
+                    subtype="html",
+                )
 
-            message = MessageSchema(
-                subject="Recuperación de Contraseña - UCOfit",
-                recipients=[email],
-                body=html_content,
-                subtype="html",
-            )
+                await self.fastmail.send_message(message)
+                return True
 
-            await self.fastmail.send_message(message)
-            return True
-
-        except Exception as e:
-            raise EmailError(f"Error enviando email de recuperación: {str(e)}") from e
+            except asyncio.TimeoutError as e:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                raise EmailError(f"Timeout después de {max_retries} intentos: {str(e)}") from e
+            except Exception as e:
+                if attempt < max_retries - 1 and "Timed out" in str(e):
+                    await asyncio.sleep(retry_delay)
+                    continue
+                raise EmailError(f"Error enviando email de recuperación: {str(e)}") from e
+        
+        raise EmailError(f"Error enviando email después de {max_retries} intentos")
 
     async def send_password_reset_confirmation(self, email: str) -> bool:
         """Envía email de confirmación de cambio de contraseña.
@@ -105,23 +123,36 @@ class EmailService:
         Raises:
             EmailError: Si hay error enviando el email
         """
-        try:
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                template = self.template_env.get_template("password_reset_confirmation.html")
+                html_content = template.render(user_email=email)
 
-            template = self.template_env.get_template("password_reset_confirmation.html")
-            html_content = template.render(user_email=email)
+                message = MessageSchema(
+                    subject="Contraseña Actualizada - UCOfit",
+                    recipients=[email],
+                    body=html_content,
+                    subtype="html",
+                )
 
-            message = MessageSchema(
-                subject="Contraseña Actualizada - UCOfit",
-                recipients=[email],
-                body=html_content,
-                subtype="html",
-            )
+                await self.fastmail.send_message(message)
+                return True
 
-            await self.fastmail.send_message(message)
-            return True
-
-        except Exception as e:
-            raise EmailError(f"Error enviando email de confirmación: {str(e)}") from e
+            except asyncio.TimeoutError as e:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                raise EmailError(f"Timeout después de {max_retries} intentos: {str(e)}") from e
+            except Exception as e:
+                if attempt < max_retries - 1 and "Timed out" in str(e):
+                    await asyncio.sleep(retry_delay)
+                    continue
+                raise EmailError(f"Error enviando email de confirmación: {str(e)}") from e
+        
+        raise EmailError(f"Error enviando email después de {max_retries} intentos")
 
 
 email_service = EmailService()
